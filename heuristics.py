@@ -1,6 +1,7 @@
 import numpy as np
 import heapq
 
+# OPTIMIZE: replace np.argmax with heap
 def highest_colored_neighbor_heuristic(adj_list):
     n_vertices = len(adj_list)
 
@@ -28,8 +29,8 @@ def ordered_heuristic(adj_list):
     vertex_degrees.sort(key=lambda x: x[1], reverse=True) # sort based on degrees, descending
     return [x[0] for x in vertex_degrees]
 
-def dynamic_ordered_heuristic(adj_list): # NON_OPTIMAL
-    # the reason for -1 in the following line is to get a max-heap instead of min-heap
+# OPTIMIZE: replace np.argmax with heap
+def dynamic_ordered_heuristic(adj_list): 
     dynamic_degrees = [len(row) for row in adj_list]
 
     result = []
