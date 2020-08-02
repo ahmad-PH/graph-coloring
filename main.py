@@ -4,14 +4,6 @@ import os
 from torch.utils.data import Dataset, DataLoader
 from graph import Graph
 
-# a test graph
-a = [
-    [1, 3],
-    [0, 2, 3, 4],
-    [1, 4],
-    [0, 1, 4],
-    [1, 2, 3],
-]
 
 def adj_list_to_matrix(adj_list):
     n = len(adj_list)
@@ -62,16 +54,20 @@ class GraphDatasetEager(Dataset):
     def __len__(self):
         return self.len
 
-
 from heuristics import *
+from test import *
 
 if __name__=='__main__':
-    ds = GraphDatasetEager('../data/erdos_renyi/train')
-    print(ordered_heuristic(ds[0].adj_list))
+    c, nc = colorize_using_heuristic(graph2, dynamic_ordered_heuristic)
+    print(c, nc)
+
+    # ds = GraphDatasetEager('../data/erdos_renyi/train')
+    # print(ordered_heuristic(ds[0].adj_list))
 
     # train_dl = DataLoader(GraphDatasetEager('../data/erdos_renyi/train'))
     # valid_dl = DataLoader(GraphDatasetEager('../data/erdos_renyi/valid'))
     # test_dl = DataLoader(GraphDatasetEager('../data/erdos_renyi/test'))
+
 
     # G = nx.erdos_renyi_graph(10, 0.5)
     # G = Graph.from_networkx_graph(G)
