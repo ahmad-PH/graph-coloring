@@ -3,24 +3,7 @@ import networkx as nx
 import os
 from torch.utils.data import Dataset, DataLoader
 from graph import Graph
-
-
-def adj_list_to_matrix(adj_list):
-    n = len(adj_list)
-    adj_matrix = np.zeros((n,n))
-    for i in range(n):
-        adj_matrix[i, adj_list[i]] = 1
-    return adj_matrix
-
-def adj_matrix_to_list(adj_matrix):
-    adj_list = []
-    for i in range(adj_matrix.shape[0]):
-        adj_list.append([])
-        for j in range(adj_matrix.shape[1]):
-            if adj_matrix[i, j] == 1: 
-                adj_list[-1].append(j)
-    return adj_list
-
+from matplotlib import pyplot as plt
 
 class GraphDataset(Dataset):
     def __init__(self, foldername):
