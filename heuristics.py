@@ -43,3 +43,22 @@ def dynamic_ordered_heuristic(adj_list):
     return result
 
 
+def colorize_using_heuristic(adj_list, heuristic):
+    colors = np.array([None] * len(adj_list))
+    next_color = 0
+
+    vertex_order = heuristic(adj_list)
+    for vertex in vertex_order:
+        colors_used = set(colors[adj_list[vertex]])
+        for color in range(next_color):
+            if color not in colors_used:
+                colors[vertex] = color
+                break
+        if colors[vertex] == None: # all colors were used
+            colors[vertex] = next_color
+            next_color += 1
+    
+    n_colors_used = next_color
+    return colors, n_colors_used
+        
+
