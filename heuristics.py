@@ -21,7 +21,7 @@ def highest_colored_neighbor_heuristic(adj_list):
 
 
 def unordered_heuristic(adj_list):
-    return [range(len(adj_list))]
+    return list(range(len(adj_list)))
 
 def ordered_heuristic(adj_list):
     degrees = [len(row) for row in adj_list]
