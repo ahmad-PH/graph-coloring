@@ -1,4 +1,6 @@
 
+import networkx as nx
+
 def networkx_graph_to_adj_list(graph):
     adj_list = []
     for i in range(len(graph.adj)):
@@ -9,10 +11,13 @@ def networkx_graph_to_adj_list(graph):
 class Graph:
     def __init__(self, adj_list):
         self.adj_list = adj_list
+        self.nx_graph = None
     
     @staticmethod
     def from_networkx_graph(graph):
-        return Graph(networkx_graph_to_adj_list(graph))
+        G = Graph(networkx_graph_to_adj_list(graph))
+        G.nx_graph = graph
+        return G
 
     def save(self, path):
         with open(path, 'w') as f:
@@ -31,7 +36,18 @@ class Graph:
                 adj_list.append(row)
                 line = f.readline()
         return Graph(adj_list)
+        
+    def get_nx_graph(self):
+        if self.nx_graph is None:
+            self.nx_graph = self._calculate_nx_graph()
+        return self.nx_graph
 
-    
+    def _calculate_nx_graph(self):
+        G = nx.Graph()
+        for v1, row in enumerate(self.adj_list):
+            for v2 in row:
+                G.add_edge(v1, v2)
+        return G
+
     def __str__(self):
-        return str(self.adj_list)
+        return 'graph: ' + str(self.adj_list)
