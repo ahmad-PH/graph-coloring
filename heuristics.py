@@ -61,4 +61,15 @@ def colorize_using_heuristic(adj_list, heuristic):
     n_colors_used = next_color
     return colors, n_colors_used
         
+def run_heuristic_on_dataset(heuristic, ds):
+    results = []
+    for i, graph in enumerate(ds):
+        coloring, n_colors = colorize_using_heuristic(graph.adj_list, heuristic)
 
+        # is_proper = is_proper_coloring(coloring, graph.adj_list)
+        print('graph {}, n_colors: {}, is_proper: {}'.format(i, n_colors, None))
+
+        results.append(n_colors)
+    avg = np.mean(results)
+    print('avg:', avg)
+    return avg
