@@ -1,5 +1,6 @@
 import math
 import heapq
+import numpy as np
 
 def combinations(n, k):
     if n < k:
@@ -22,7 +23,13 @@ def adj_matrix_to_list(adj_matrix):
                 adj_list[-1].append(j)
     return adj_list
 
-
+def is_proper_coloring(coloring, adj_list):
+    for v1, row in enumerate(adj_list):
+        for v2 in row:
+            if coloring[v1] == coloring[v2]:
+                return False
+    return True
+            
 
 # class ComparableContainer:
 #     def __init__(self, item, key):
