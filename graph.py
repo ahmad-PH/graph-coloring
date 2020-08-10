@@ -12,6 +12,7 @@ class Graph:
     def __init__(self, adj_list):
         self.adj_list = adj_list
         self.nx_graph = None
+        self.n_vertices = len(adj_list)
     
     @staticmethod
     def from_networkx_graph(graph):
