@@ -190,3 +190,24 @@ class GraphSingularAttentionLayer(nn.Module):
 # print(result1)
 # print(result2)
 # print(torch.allclose(result1, result2))
+
+
+class SGAT(nn.Module):
+    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads):
+        """Dense version of GAT."""
+        super(GAT, self).__init__()
+        self.dropout = dropout
+
+        self.attentions = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+        for i, attention in enumerate(self.attentions):
+            self.add_module('attention_{}'.format(i), attention)
+
+        self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
+        self.add_module('out_att', self.out_att)
+
+    def forward(self, x, target_index):
+        x = F.dropout(x, self.dropout, training=self.training)
+        x = torch.cat([att(x, target_index) for att in self.attentions], dim=1)
+        x = F.dropout(x, self.dropout, training=self.training)
+        x = F.elu(self.out_att(x, adj))
+        return x
