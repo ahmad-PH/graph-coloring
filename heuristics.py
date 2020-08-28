@@ -48,15 +48,21 @@ def colorize_using_heuristic(adj_list, heuristic):
     next_color = 0
 
     vertex_order = heuristic(adj_list)
-    for vertex in vertex_order:
+    for i, vertex in enumerate(vertex_order): # remove enumerate
         colors_used = set(colors[adj_list[vertex]])
         for color in range(next_color):
             if color not in colors_used:
                 colors[vertex] = color
                 break
+        new_color = False #remove 
         if colors[vertex] == None: # all colors were used
+            new_color = True # remove
             colors[vertex] = next_color
             next_color += 1
+
+        # print("i: {} \nvertex: {} \ndegree: {} \nneighbors: {} \ncolors_used: {} \ncolor_chosen: {} {}\n".format(i, vertex, len(adj_list[vertex]), adj_list[vertex], colors_used, colors[vertex], "(New)" if new_color else ""))
+        # if i == 200:
+            # break
     
     n_colors_used = next_color
     return colors, n_colors_used
