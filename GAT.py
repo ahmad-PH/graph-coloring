@@ -144,14 +144,10 @@ class GraphSingularAttentionLayer(nn.Module):
 
         self.leakyrelu = nn.LeakyReLU(self.alpha)
 
-    def forward(self, h, target_index):
-        # print('h: ', h.shape) # h: (n_inputs, embedding_size)
+    def forward(self, h, target_vertex):
         Wh = torch.mm(h, self.W)
-        # print('Wh: ', Wh.shape) # Wh: (n_inputs, embedding_size)
-
         N = h.shape[0]
-
-        all_combinations_matrix = torch.cat([Wh[target_index].repeat(N, 1), Wh], dim=1)
+        all_combinations_matrix = torch.cat([Wh[target_vertex].repeat(N, 1), Wh], dim=1)
         e = self.leakyrelu(torch.matmul(all_combinations_matrix, self.a)).squeeze(1)
         alpha = F.softmax(e, dim=0)
         alpha = F.dropout(alpha, self.dropout, training=self.training)
