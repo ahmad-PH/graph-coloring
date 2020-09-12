@@ -24,6 +24,34 @@ graph2 = [
     [3],
 ]
 
+# the petersen graph
+graph3 = [
+    [1,4,5], # 0
+    [0,2,6], # 1
+    [1,3,7], # 2
+    [2,4,8], # 3
+    [0,3,9], # 4
+    [0,7,8], # 5
+    [1,8,9], # 6
+    [2,5,9], # 7
+    [3,5,6], # 8
+    [4,6,7], # 9
+]
+
+# bipartite graph with 10 vertices
+graph4 = [
+    [5,6,7,8,9], # 0
+    [5,6,7,8,9], # 1
+    [5,6,7,8,9], # 2
+    [5,6,7,8,9], # 3
+    [5,6,7,8,9], # 4
+    [0,1,2,3,4], # 5
+    [0,1,2,3,4], # 6
+    [0,1,2,3,4], # 7
+    [0,1,2,3,4], # 8
+    [0,1,2,3,4], # 9
+]
+
 class TestHighestColoredNeighborHeuristic(unittest.TestCase):
     def test_graph1(self):
         self.assertListEqual(highest_colored_neighbor_heuristic(graph1), [1, 0, 3, 4, 2])
@@ -212,8 +240,35 @@ class TestColorClassifier(unittest.TestCase):
             self.assertEqual(y_hat[adj_color].item(), 0.)
         
 
+class TestLossComputation(unittest.TestCase):
+    def setUp(self):
+        self.colorizer = GraphColorizer()
+    
+    def _one_hot(self, index, value):
+        result = torch.zeros(self.colorizer.n_possible_colors + 1)
+        result[index] = value
+        return result
 
+    def test_adj_penalty_decrease(self):
+        adj_colors = [0]
+        l1 = self.colorizer._compute_color_classifier_loss(self._one_hot(0, 0.9), adj_colors)
+        l2 = self.colorizer._compute_color_classifier_loss(self._one_hot(0, 0.8), adj_colors)
+        self.assertLess(l2, l1)
 
+    def test_new_color_penalty_decrease(self):
+        adj_colors = []
+        l1 = self.colorizer._compute_color_classifier_loss(self._one_hot(self.colorizer.n_possible_colors, 0.9), adj_colors)
+        l2 = self.colorizer._compute_color_classifier_loss(self._one_hot(self.colorizer.n_possible_colors, 0.8), adj_colors)
+        self.assertLess(l2, l1)
 
+    def test_adj_penalty_greater_than_new_color_penalty(self):
+        adj_colors = [1]
+        adj_penalty = self.colorizer._compute_color_classifier_loss(self._one_hot(1, 0.9), adj_colors)
+        new_color_penalty = self.colorizer._compute_color_classifier_loss(self._one_hot(self.colorizer.n_possible_colors, 0.9), adj_colors)
+        self.assertGreater(adj_penalty, new_color_penalty)    
 
+    def test_no_penalty_for_correct_choice(self):
+        adj_colors = [0,2]
+        loss = self.colorizer._compute_color_classifier_loss(self._one_hot(1, 0.9), adj_colors)
+        self.assertAlmostEqual(loss, 0.)
 
