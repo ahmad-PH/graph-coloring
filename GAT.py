@@ -162,48 +162,24 @@ class GraphSingularAttentionLayer(nn.Module):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
 
 
+# commented-out because it is bugged: multiple attention layers require the output of the first layer not to be singular
+# class SGAT(nn.Module):
+#     def __init__(self, nfeat, nhid, nout, dropout, alpha, nheads):
+#         """Dense version of GAT."""
+#         super(SGAT, self).__init__()
+#         self.dropout = dropout
 
-# a = 1000
-# b = 2000
-# torch.manual_seed(0)
-# GAT1 = GraphAttentionLayer(a, b, 0, 0.1)
+#         # TO CONTINUE:
+#         self.attentions = [GraphSingularAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
+#         for i, attention in enumerate(self.attentions):
+#             self.add_module('attention_{}'.format(i), attention)
 
-# torch.manual_seed(0)
-# GAT2 = GraphAttentionLayerRefactored(a, b, 0, 0.1)
+#         self.out_att = GraphSingularAttentionLayer(nhid * nheads, nout, dropout=dropout, alpha=alpha, concat=False)
+#         self.add_module('out_att', self.out_att)
 
-# test_embeddings = torch.randn(4, a)
-
-# adj_matrix = torch.tensor([
-#     [1,1,1,0],
-#     [1,1,0,1],
-#     [1,0,1,0],
-#     [0,1,0,1],
-# ])
-
-# result1 = GAT1.forward(test_embeddings, adj_matrix)
-# result2 = GAT2.forward(test_embeddings, adj_matrix)
-
-# print(result1)
-# print(result2)
-# print(torch.allclose(result1, result2))
-
-
-class SGAT(nn.Module):
-    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads):
-        """Dense version of GAT."""
-        super(GAT, self).__init__()
-        self.dropout = dropout
-
-        self.attentions = [GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
-        for i, attention in enumerate(self.attentions):
-            self.add_module('attention_{}'.format(i), attention)
-
-        self.out_att = GraphAttentionLayer(nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False)
-        self.add_module('out_att', self.out_att)
-
-    def forward(self, x, target_index):
-        x = F.dropout(x, self.dropout, training=self.training)
-        x = torch.cat([att(x, target_index) for att in self.attentions], dim=1)
-        x = F.dropout(x, self.dropout, training=self.training)
-        x = F.elu(self.out_att(x, adj))
-        return x
+#     def forward(self, x, target_index):
+#         x = F.dropout(x, self.dropout, training=self.training)
+#         x = torch.cat([att(x, target_index) for att in self.attentions], dim=1)
+#         x = F.dropout(x, self.dropout, training=self.training)
+#         x = F.elu(self.out_att(x, target_index))
+#         return x
