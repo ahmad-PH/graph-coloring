@@ -81,20 +81,29 @@ class ColorClassifier(nn.Module):
             assert(self.n_possible_colors == 256)
 
     def _mask_irrelevant_colors(self, activations, n_used_colors):
-        mask = torch.tensor([0] * n_used_colors + [1] * (self.n_possible_colors - n_used_colors) + [0], dtype=torch.bool)
-        mask = mask.repeat(activations.shape[0], 1).to(activations.device)
+        mask = torch.tensor([0] * n_used_colors + [1] * (self.n_possible_colors - n_used_colors) + [0], \
+            dtype=torch.bool, requires_grad=False).to(activations.device)
+        mask = mask.repeat(activations.shape[0], 1)
+        return activations.masked_fill(mask, float("-inf"))
+
+    def _mask_colors(self, activations, colors):
+        mask = torch.tensor([False] * (self.n_possible_colors + 1), dtype=torch.bool, requires_grad=False).to(activations.device)
+        mask[colors] = True
+        mask = mask.repeat(activations.shape[0], 1)
         return activations.masked_fill(mask, float("-inf"))
 
     def forward(self, x, n_used_colors, adj_colors = None):
         if x.ndim == 1: 
             no_batch = True
-            x = x.unsqueeze(0)
+            x = torch.unsqueeze(x, 0)
         else:
             no_batch = False
         x = self.leaky_relu(self.fc1(x))
         x = self.leaky_relu(self.fc2(x))
         x = self.fc3(x)
         x = self._mask_irrelevant_colors(x, n_used_colors)
+        if adj_colors is not None:
+            x = self._mask_colors(x, adj_colors)
         x = self.softmax(x)
         if no_batch: x = x.squeeze(0)
         return x

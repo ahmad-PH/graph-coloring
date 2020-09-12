@@ -3,7 +3,7 @@ import math
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from graph_colorizer import ColorClassifier
+from graph_colorizer import GraphColorizer, ColorClassifier
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -164,7 +164,7 @@ class TestColorClassifier(unittest.TestCase):
     def test_n_used_colors_masks_propery(self):
         embedding_size = 100
         n_possible_colors = 20
-        x, y = self._create_sample_data(embedding_size, n_possible_colors)
+        x, _ = self._create_sample_data(embedding_size, n_possible_colors)
         classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
 
         y_hat = classifier(x[0], 10)
@@ -196,6 +196,21 @@ class TestColorClassifier(unittest.TestCase):
         
         self.assertLess(loss.item(), 0.00001)
 
+    def test_neighboring_colors_masked_properly(self):
+        embedding_size = 100
+        n_possible_colors = 20
+        x, _ = self._create_sample_data(embedding_size, n_possible_colors, 1)
+        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        
+        adj_colors = [1,3,5]
+        y_hat = classifier(x[0], n_possible_colors, adj_colors=None)
+        for adj_color in adj_colors:
+            self.assertGreater(y_hat[adj_color].item(), 0.)
+
+        y_hat = classifier(x[0], n_possible_colors, adj_colors=adj_colors)
+        for adj_color in adj_colors:
+            self.assertEqual(y_hat[adj_color].item(), 0.)
+        
 
 
 
