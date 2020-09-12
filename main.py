@@ -44,12 +44,56 @@ from utility import *
 from networkx.algorithms import approximation
 from networkx.algorithms.community.kclique import k_clique_communities
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
+from test import graph1, graph2
 
 def n_edges(adj_list):
     sum_of_degrees =  sum([len(neighborhood) for neighborhood in adj_list])
     if sum_of_degrees % 2 != 0:
         raise ValueError('sum of degrees in adjacency list is not even.')
     return int(sum_of_degrees / 2)
+
+
+if __name__=='__main__':
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    colorizer = GraphColorizer(loss_type="reinforce", device=device)
+    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.01)
+    # graph = Graph(graph4)
+
+    import random
+    random.seed(0)
+    np.random.seed(0)
+    nx_g = nx.erdos_renyi_graph(200, 0.3)
+    # nx_g = nx.erdos_renyi_graph(1000, 0.5)
+    graph = Graph.from_networkx_graph(nx_g)
+
+    color = greedy_color(graph.get_nx_graph())
+    print('approx:', len(set(color.values()))) 
+    # import sys; sys.exit(0)
+
+    baseline = 0.
+    decay = 0.95
+    losses = []
+    for i in range(100):
+        print("epoch: {}".format(i))
+        optimizer.zero_grad()
+        # with torch.autograd.set_detect_anomaly(True):
+        coloring, loss = colorizer.forward(graph, baseline)
+        n_used_colors = len(set(coloring))
+        baseline = decay * baseline + (1-decay) * n_used_colors
+        loss.backward()
+        optimizer.step()
+        print('loss:', loss.item())
+        print('n_used: {}, new_baseline: {}'.format(n_used_colors, baseline))
+        losses.append(loss.item())
+        print(coloring)
+
+
+    plt.plot(losses)
+    plt.show()
+
+    import sys 
+    sys.exit()
+
 
 if __name__=='__main__':
     gc = GraphColorizer()
