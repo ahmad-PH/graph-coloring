@@ -7,6 +7,7 @@ from graph_colorizer import GraphColorizer, ColorClassifier
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from utility import EWMA
 
 graph1 =  [
     [1, 3],
@@ -272,3 +273,21 @@ class TestLossComputation(unittest.TestCase):
         loss = self.colorizer._compute_color_classifier_loss(self._one_hot(1, 0.9), adj_colors)
         self.assertAlmostEqual(loss, 0.)
 
+
+
+class TestEWMA(unittest.TestCase):
+    def test_no_values(self):
+        avg = EWMA()
+        self.assertEqual(avg.get_value(), 0.)
+
+    def test_single_value(self):
+        avg = EWMA()
+        avg.update(1.0)
+        self.assertEqual(avg.get_value(), 1.0)
+
+    def test_multiple_values(self):
+        avg = EWMA(0.8)
+        avg.update(5.)
+        avg.update(10.)
+        avg.update(11.)
+        self.assertAlmostEqual(avg.get_value(), 9.098, places=2)

@@ -30,6 +30,22 @@ def is_proper_coloring(coloring, adj_list):
                 return False
     return True
             
+class EWMA:
+    def __init__(self, beta=0.95):
+        self._avg = 0
+        self._beta = beta
+        self._counter = 0
+
+    def update(self, new_value):
+        self._avg = self._avg * self._beta + new_value * (1 - self._beta)
+        self._counter += 1
+
+    def get_value(self):
+        if self._counter != 0:
+            return self._avg / (1 - self._beta ** self._counter)
+        else:
+            return 0.
+
 
 # class ComparableContainer:
 #     def __init__(self, item, key):
