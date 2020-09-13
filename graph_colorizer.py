@@ -80,7 +80,7 @@ class GraphColorizer(nn.Module):
 
         if self.loss_type == "reinforce":
             if baseline is None: raise ValueError('baseline can not be None if loss type is `reinforcement`.')
-            print('n_used: {}, partial_prob: {}'.format(n_used_colors, partial_prob))
+            print('partial_prob: {}'.format(partial_prob))
             loss = (n_used_colors - baseline) * partial_prob            
 
         return colors, loss
