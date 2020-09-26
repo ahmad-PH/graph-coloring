@@ -147,7 +147,8 @@ class GraphSingularAttentionLayer(nn.Module):
     def forward(self, h, target_vertex):
         Wh = torch.mm(h, self.W)
         N = h.shape[0]
-        all_combinations_matrix = torch.cat([Wh[target_vertex].repeat(N, 1), Wh], dim=1)
+        expanded_Wh = Wh[target_vertex].unsqueeze(0).expand(N, -1)
+        all_combinations_matrix = torch.cat([expanded_Wh, Wh], dim = 1)
         e = self.leakyrelu(torch.matmul(all_combinations_matrix, self.a)).squeeze(1)
         alpha = F.softmax(e, dim=0)
         alpha = F.dropout(alpha, self.dropout, training=self.training)
@@ -169,7 +170,6 @@ class GraphSingularAttentionLayer(nn.Module):
 #         super(SGAT, self).__init__()
 #         self.dropout = dropout
 
-#         # TO CONTINUE:
 #         self.attentions = [GraphSingularAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True) for _ in range(nheads)]
 #         for i, attention in enumerate(self.attentions):
 #             self.add_module('attention_{}'.format(i), attention)
