@@ -1,3 +1,8 @@
+
+from graph import Graph
+from torch.utils.data import Dataset, DataLoader
+import os
+
 class GraphDataset(Dataset):
     def __init__(self, foldername):
         file_names = os.listdir(foldername)
