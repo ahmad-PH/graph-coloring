@@ -25,8 +25,7 @@ graph2 = [
     [3],
 ]
 
-# the petersen graph
-graph3 = [
+petersen_graph = [
     [1,4,5], # 0
     [0,2,6], # 1
     [1,3,7], # 2
@@ -39,8 +38,7 @@ graph3 = [
     [4,6,7], # 9
 ]
 
-# bipartite graph with 10 vertices
-graph4 = [
+bipartite_10_vertices = [
     [5,6,7,8,9], # 0
     [5,6,7,8,9], # 1
     [5,6,7,8,9], # 2
