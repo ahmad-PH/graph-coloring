@@ -1,8 +1,10 @@
 import math
 import heapq
 import numpy as np
+import itertools
+from graph import Graph
 
-def combinations(n, k):
+def n_combinations(n, k):
     if n < k:
         raise ValueError('n cannot be smaller than k in combination(n, k)')
     return int(math.factorial(n) / (math.factorial(n-k) * math.factorial(k)))
@@ -45,6 +47,16 @@ class EWMA:
     def get_value(self):
         return self._corrected
 
+
+def kneser_graph(n, k):
+    subsets = [frozenset(subset) for subset in itertools.combinations(range(n), k)]
+    adj_list = [[] for _ in range(len(subsets))]
+    for i in range(len(subsets)):
+        for j in range(i+1, len(subsets)):
+            if subsets[i].isdisjoint(subsets[j]):
+                adj_list[i].append(j)
+                adj_list[j].append(i)
+    return Graph(adj_list)
 
 # class ComparableContainer:
 #     def __init__(self, item, key):
