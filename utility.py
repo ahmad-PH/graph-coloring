@@ -58,6 +58,14 @@ def kneser_graph(n, k):
                 adj_list[j].append(i)
     return Graph(adj_list)
 
+
+def n_edges(adj_list):
+    sum_of_degrees =  sum([len(neighborhood) for neighborhood in adj_list])
+    if sum_of_degrees % 2 != 0:
+        raise ValueError('sum of degrees in adjacency list is not even.')
+    return int(sum_of_degrees / 2)
+
+
 # class ComparableContainer:
 #     def __init__(self, item, key):
 #         self.item = item

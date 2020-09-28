@@ -1,16 +1,15 @@
+# imports from standard python libraries
 import numpy as np
 import networkx as nx
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from graph import Graph
 import os
-from graph_colorizer import GraphColorizer
-
-
-# ============================== Testing Region ==============================
+from typing import *
 from matplotlib import pyplot as plt
+
+# imports from local files
+from graph import Graph
 from heuristics import *
 from test import *
 from dataset_generators import *
@@ -18,13 +17,27 @@ from utility import *
 from networkx.algorithms import approximation
 from networkx.algorithms.community.kclique import k_clique_communities
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
+from graph_dataset import GraphDataset, GraphDatasetEager
 from test import graph1, graph2
+from dataset_generators import generate_erdos_renyi, generate_watts_strogatz
+from graph_colorizer import GraphColorizer
+from utility import kneser_graph
 
-def n_edges(adj_list):
-    sum_of_degrees =  sum([len(neighborhood) for neighborhood in adj_list])
-    if sum_of_degrees % 2 != 0:
-        raise ValueError('sum of degrees in adjacency list is not even.')
-    return int(sum_of_degrees / 2)
+
+# for k in range(3,10):
+#     for n in range(2*k+1, 2*k+7):
+#         graph = kneser_graph(n, k)
+#         print('\n')
+#         print('n: {}, k: {}'.format(n, k))
+#         # print(graph)
+#         color = greedy_color(graph.get_nx_graph())
+#         n_colors = len(set(color.values()))
+#         print('chromatic number: {}, greedy approx: {}'.format(n-2*k+2, n_colors))
+# import sys; sys.exit(0)
+
+
+# generate_erdos_renyi('../data/erdos_renyi_500', 20, 5, 5, 500, 0.5)
+
 
 
 if __name__=='__main__':
