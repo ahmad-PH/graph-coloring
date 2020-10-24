@@ -48,7 +48,7 @@ class EWMA:
         return self._corrected
 
 
-def kneser_graph(n, k):
+def generate_kneser_graph(n, k):
     subsets = [frozenset(subset) for subset in itertools.combinations(range(n), k)]
     adj_list = [[] for _ in range(len(subsets))]
     for i in range(len(subsets)):
