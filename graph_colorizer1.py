@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from graph import Graph
 from GAT import GraphSingularAttentionLayer
 from heuristics import highest_colored_neighbor_heuristic
+from typing import *
+from matplotlib import pyplot as plt
 
 class GraphColorizer(nn.Module):
     def __init__(self, dropout=0.6, alpha=0.2, device="cpu", loss_type="reinforce"):
@@ -14,33 +16,45 @@ class GraphColorizer(nn.Module):
         if loss_type not in ["reinforce", "direct"]:
             raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss))
         self.loss_type = loss_type
+        # print('memory before attn: {}'.format(torch.cuda.memory_allocated(0)))
         self.add_module("attn", 
-            GraphSingularAttentionLayer(self.embedding_size + self.n_possible_colors, self.embedding_size, dropout, alpha) 
+            GraphSingularAttentionLayer(self.embedding_size + self.n_possible_colors, self.embedding_size, dropout, alpha).to('cuda:0') # TEST
         )
-        # self.sgat = SGAT(self.embedding_size + self.n_possible_colors, self.embedding_size, self.embedding_size, dropout, alpha, nheads) 
+        # print('memory before classifier: {}'.format(torch.cuda.memory_allocated(0)))
         self.add_module("color_classifier", 
-            ColorClassifier(self.embedding_size, self.n_possible_colors)
+            ColorClassifier(self.embedding_size, self.n_possible_colors).to('cuda:0') # TEST
         )
+        # print('memory after classifier: {}'.format(torch.cuda.memory_allocated(0)))
         self.device = device
         self.to(device)
 
+        self.attn_w_norms : List[float] = [] # TEST
+        self.attn_a_norms : List[float] = [] # TEST
+        self.classif_norms: List[List[float]] = [[], [], []] # TEST
+
+
     def forward(self, graph: Graph, baseline=None):
         # initializations
+        # print('initial memory: ', torch.cuda.memory_allocated(0))
         colors = np.array([-1] * graph.n_vertices)
         one_hot_colors = torch.zeros(graph.n_vertices, self.n_possible_colors).to(self.device)
+        # print('memory after one-hot colors: ', torch.cuda.memory_allocated(0))
         embeddings = torch.zeros(graph.n_vertices, self.embedding_size).to(self.device)
+        # print('memory after initializations: ', torch.cuda.memory_allocated(0))
         n_used_colors = 0
         vertex_order = highest_colored_neighbor_heuristic(graph.adj_list)
         if self.loss_type == "direct":
             loss = torch.tensor(0.).to(self.device)
         elif self.loss_type == "reinforce":
             partial_prob = torch.tensor(1.).to(self.device)
+            log_partial_prob = 0. # TEST
 
         # the first vertex is processed separately:
         self._assign_color(0, vertex_order[0], colors, one_hot_colors)
         n_used_colors = 1
-        for neighbor in graph.adj_list[vertex_order[0]]:
-            self._update_vertex_embedding(neighbor, graph, embeddings, one_hot_colors)
+        # TEMPORARY REMOVAL DUE TO MEM CONSTRAINTS:
+        # for neighbor in graph.adj_list[vertex_order[0]]:
+        #     self._update_vertex_embedding(neighbor, graph, embeddings, one_hot_colors)
 
         # print('vertex order:', vertex_order)
         # print('after initial assign:')
@@ -48,40 +62,92 @@ class GraphColorizer(nn.Module):
         # print(one_hot_colors)
         # print(embeddings)
         # print(n_used_colors)
+        hist = [] # TEST
+        classif_inp_norms: List[float] = [] # TEST
 
+        i = 0 # TEST
         for vertex in vertex_order[1:]: # first vertex was processed before
+            i += 1 # TEST
             # print('vertex {}'.format(vertex))
+            # print('memory: {}'.format(torch.cuda.memory_allocated(0)))
 
             self._update_vertex_embedding(vertex, graph, embeddings, one_hot_colors)
+            # print('after emb update: {}'.format(torch.cuda.memory_allocated(0)))
+
             if self.loss_type == "direct":
                 adjacent_colors = None
             elif self.loss_type == "reinforce":
                 adjacent_colors = self._get_adjacent_colors(vertex, graph, colors)
-            classifier_out = self.color_classifier(embeddings[vertex].clone(), n_used_colors, adjacent_colors)
+            classifier_out = self.color_classifier.forward(embeddings[vertex].clone(), n_used_colors, adjacent_colors)
+            classif_inp_norms.append(torch.norm(embeddings[vertex]).item())
+            # print('after classifier fw: {}'.format(torch.cuda.memory_allocated(0)))
+            # print('classifier out:', classifier_out[[0,1,2,3,self.n_possible_colors]].data)
+            if torch.any(torch.isnan(classifier_out)):
+                print('nan detected')
+                print('classifier input: {}, {}, {}'.format(embeddings[vertex], n_used_colors, adjacent_colors))
+                print('classif inp norms:', classif_inp_norms)
+                plt.title('classifier input norms')
+                plt.plot(classif_inp_norms)
+                plt.show()
+            #     plt.title('w norms')
+            #     plt.plot(self.attn.W_norms)
+            #     plt.show()
+                # import sys; sys.exit(0)
+
 
             # use output to determine next color (decode it)
             max_color_index = int(torch.argmax(classifier_out).item())
             if max_color_index == self.n_possible_colors:
+                if n_used_colors == self.n_possible_colors:
+                    raise RuntimeError('All colors are used, but the network still chose new color.')
                 chosen_color = n_used_colors
                 n_used_colors += 1
             else:
                 chosen_color = max_color_index
             self._assign_color(chosen_color, vertex, colors, one_hot_colors)
 
-            # print('classifier out:', classifier_out[[0,1,2,3,self.n_possible_colors]].data)
-            if self.loss_type == "direct":
+            hist.append(torch.max(classifier_out).item())
+
+            if self.loss_type == "reinforce":
+                prob_part = torch.max(classifier_out)
+                log_prob_part = torch.log(prob_part + 1e-8) - torch.log(torch.tensor(1e-8)) # TEST # [0, 18.42]
+                hist.append(log_prob_part.item()) # TEST
+                # partial_prob *= prob_part
+                log_partial_prob += log_prob_part
+
+            elif self.loss_type == "direct":
                 loss_p = self._compute_color_classifier_loss(classifier_out, adjacent_colors)
                 loss += loss_p
-            elif self.loss_type == "reinforce":
-                partial_prob *= torch.max(classifier_out)
+            
+            # TEMPORARY REMOVAL DUE TO MEM CONSTRAINTS:
+            # for neighbor in graph.adj_list[vertex]:
+                # self._update_vertex_embedding(neighbor, graph, embeddings, one_hot_colors)
 
-            for neighbor in graph.adj_list[vertex]:
-                self._update_vertex_embedding(neighbor, graph, embeddings, one_hot_colors)
+        self.attn_w_norms.append(torch.norm(self.attn.W).item()) # TEST
+        self.attn_a_norms.append(torch.norm(self.attn.a).item()) # TEST
+        self.classif_norms[0].append(torch.norm(self.color_classifier.fc1.weight).item()) # TEST 
+        self.classif_norms[1].append(torch.norm(self.color_classifier.fc2.weight).item()) # TEST 
+        self.classif_norms[2].append(torch.norm(self.color_classifier.fc3.weight).item()) # TEST
 
         if self.loss_type == "reinforce":
             if baseline is None: raise ValueError('baseline can not be None if loss type is `reinforcement`.')
-            print('partial_prob: {}'.format(partial_prob))
-            loss = (n_used_colors - baseline) * partial_prob            
+            print('log_partial_prob: {}'.format(log_partial_prob))
+            # loss = (n_used_colors - baseline) * partial_prob #- 100.*torch.log(partial_prob + 1e-8)   # TEST     
+            # print('log input:', n_used_colors - baseline + 1e-8)
+            # loss = np.log(n_used_colors - baseline + 1e-8) + log_partial_prob # TEST
+            reinforce_loss = (n_used_colors - baseline) * log_partial_prob / graph.n_vertices
+            regularization_term = torch.norm(self.attn.W) + \
+                 torch.norm(self.color_classifier.fc1.weight) + \
+                 torch.norm(self.color_classifier.fc2.weight) + \
+                 torch.norm(self.color_classifier.fc3.weight)
+            print('reinforce loss: {}, regularization term: {}'.format(reinforce_loss, regularization_term))
+            loss = reinforce_loss + 0.05 * regularization_term
+
+        # print('hist:', hist)
+        # print('hist multiplied:', torch.prod(torch.tensor(hist)))
+        # plt.hist(hist, bins=10)
+        # import sys
+        # sys.exit()
 
         return colors, loss
 
