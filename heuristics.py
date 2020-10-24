@@ -1,5 +1,48 @@
+from graph import Graph
+
 import numpy as np
 import heapq
+from networkx.algorithms.coloring import strategy_saturation_largest_first 
+import itertools
+
+# def slf_heuristic(adj_list):
+    # n_vertices = len(adj_list)
+    # degrees = [len(row) for row in adj_list]
+    # satur_degrees = [0] * n_vertices
+    # remaining_vertices = list(range(n_vertices))
+
+    # ordering = []
+    # for i in range(n_vertices):
+    #     chosen_vertex = remaining_vertices[0] # any of the remaining_vertices can be used for initialization
+    #     for v in remaining_vertices:
+    #         if satur_degrees[v] > satur_degrees[chosen_vertex]:
+    #             chosen_vertex = v
+
+    #         elif satur_degrees[v] == satur_degrees[chosen_vertex]:
+    #             if degrees[v] > degrees[chosen_vertex]:
+    #                 chosen_vertex = v
+
+    #     ordering.append(chosen_vertex)
+    #     remaining_vertices.remove(chosen_vertex)
+
+    #     for neighb in adj_list[chosen_vertex]:
+
+    # return ordering
+
+def slf_heuristic(adj_list):
+    G = Graph(adj_list).get_nx_graph()
+    colors = {}
+    nodes = strategy_saturation_largest_first(G, colors)
+    ordering = []
+    for u in nodes:
+        ordering.append(u)
+        neighbour_colors = {colors[v] for v in G[u] if v in colors}
+        for color in itertools.count():
+            if color not in neighbour_colors:
+                break
+        colors[u] = color
+    return ordering
+        
 
 # OPTIMIZE: replace np.argmax with heap
 def highest_colored_neighbor_heuristic(adj_list):
