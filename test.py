@@ -3,11 +3,11 @@ import math
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from graph_colorizer import GraphColorizer, ColorClassifier
+from graph_colorizer1 import GraphColorizer, ColorClassifier
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMA
+from utility import EWMA, generate_kneser_graph, generate_queens_graph, sort_graph_adj_list
 
 graph1 =  [
     [1, 3],
@@ -25,7 +25,7 @@ graph2 = [
     [3],
 ]
 
-petersen_graph = [
+petersen_graph_manual = [
     [1,4,5], # 0
     [0,2,6], # 1
     [1,3,7], # 2
@@ -36,6 +36,19 @@ petersen_graph = [
     [2,5,9], # 7
     [3,5,6], # 8
     [4,6,7], # 9
+]
+
+petersen_graph = [
+    [7, 8, 9], # 0
+    [5, 6, 9], # 1
+    [4, 6, 8], # 2
+    [4, 5, 7], # 3
+    [2, 3, 9], # 4
+    [1, 3, 8], # 5
+    [1, 2, 7], # 6
+    [0, 3, 6], # 7
+    [0, 2, 5], # 8
+    [0, 1, 4], # 9
 ]
 
 bipartite_10_vertices = [
@@ -289,3 +302,40 @@ class TestEWMA(unittest.TestCase):
         avg.update(10.)
         avg.update(11.)
         self.assertAlmostEqual(avg.get_value(), 9.098, places=2)
+
+
+class TestKneserGraphGenerator(unittest.TestCase):
+    def test_petersen_graph(self):
+        graph = generate_kneser_graph(5,2)
+        self.assertListEqual(graph.adj_list, petersen_graph)
+    
+    def test_complete_graph(self):
+        graph = generate_kneser_graph(4, 1)
+        self.assertListEqual(graph.adj_list, [
+            [1,2,3],
+            [0,2,3],
+            [0,1,3],
+            [0,1,2]
+        ]) # assert that it is the complete graph with 4 vertices
+
+
+class TestQueensGraphGenerator(unittest.TestCase):
+    def test_2by2(self):
+        graph = generate_queens_graph(2,2)
+        sort_graph_adj_list(graph.adj_list)
+        self.assertListEqual(graph.adj_list,
+            [[1, 2, 3], [0, 2, 3], [0, 1, 3], [0, 1, 2]]
+        )
+
+    def test_3by3(self):
+        graph = generate_queens_graph(3,3)
+        sort_graph_adj_list(graph.adj_list)
+        self.assertListEqual(graph.adj_list[0], [1,2,3,4,6,8])
+        self.assertListEqual(graph.adj_list[8], [0,2,4,5,6,7])
+
+    def test_2by3(self):
+        graph = generate_queens_graph(2,3)
+        sort_graph_adj_list(graph.adj_list)
+        self.assertListEqual(graph.adj_list[0], [1,2,3,4])
+        self.assertListEqual(graph.adj_list[1], [0,2,3,4,5])
+        self.assertListEqual(graph.adj_list[5], [1,2,3,4])
