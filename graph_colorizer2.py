@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from graph import Graph
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from heuristics import highest_colored_neighbor_heuristic
+from heuristics import slf_heuristic
 from typing import *
 from matplotlib import pyplot as plt
 from utility import *
@@ -44,7 +44,7 @@ class GraphColorizer(nn.Module):
             embeddings = self.attn.forward(embeddings, adj_matrix)
             embeddings = self.attn2.forward(embeddings, inverted_adj_matrix)
 
-        vertex_order = highest_colored_neighbor_heuristic(graph.adj_list)
+        vertex_order = slf_heuristic(graph.adj_list)
         colors = np.array([-1] * graph.n_vertices)
         self._assign_color(0, vertex_order[0], colors)
         n_used_colors = 1
