@@ -58,6 +58,40 @@ def generate_kneser_graph(n, k):
                 adj_list[j].append(i)
     return Graph(adj_list)
 
+def generate_queens_graph(m, n):
+    chess_coord_to_vertex_ind = lambda i, j: i * n + j
+    adj_list = [[] for _ in range(m * n)]
+    for i1 in range(m):
+        for j1 in range(n):
+            index = chess_coord_to_vertex_ind(i1, j1)
+
+            # add the row
+            i2 = i1
+            for j2 in [x for x in range(n) if x != j1]:
+                adj_list[index].append(chess_coord_to_vertex_ind(i2, j2))
+
+            # add the column
+            j2 = j1
+            for i2 in [x for x in range(m) if x != i1]:
+                adj_list[index].append(chess_coord_to_vertex_ind(i2, j2))
+
+            # add the two diagonals
+            for i2 in [x for x in range(m) if x != i1]:
+                j2 = j1 + (i2-i1)
+                if j2 >= 0 and j2 < n:
+                    adj_list[index].append(chess_coord_to_vertex_ind(i2, j2))
+
+                j2 = j1 - (i2-i1)
+                if j2 >= 0 and j2 < n:
+                    adj_list[index].append(chess_coord_to_vertex_ind(i2, j2))
+
+
+    return Graph(adj_list)
+            
+
+def sort_graph_adj_list(adj_list):
+    for neighborhood in adj_list:
+        neighborhood.sort()
 
 def n_edges(adj_list):
     sum_of_degrees =  sum([len(neighborhood) for neighborhood in adj_list])
