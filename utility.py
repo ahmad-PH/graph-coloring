@@ -32,7 +32,7 @@ def is_proper_coloring(coloring, adj_list):
                 return False
     return True
             
-class EWMA:
+class EWMAWithCorrection:
     def __init__(self, beta=0.95):
         self._avg = 0.
         self._corrected = 0.
@@ -46,6 +46,22 @@ class EWMA:
 
     def get_value(self):
         return self._corrected
+
+
+class EWMA:
+    def __init__(self, beta=0.95):
+        self._avg = 0.
+        self._beta = beta
+
+    def update(self, new_value):
+        self._avg = self._avg * self._beta + new_value * (1 - self._beta)
+
+    def reset(self, reset_value=0):
+        self._avg = reset_value
+
+    def get_value(self):
+        return self._avg
+
 
 
 def generate_kneser_graph(n, k):
