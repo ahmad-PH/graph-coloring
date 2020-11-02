@@ -21,7 +21,7 @@ from graph_dataset import GraphDataset, GraphDatasetEager
 from dataset_generators import generate_erdos_renyi, generate_watts_strogatz
 from utility import generate_kneser_graph, generate_queens_graph
 
-from graph_colorizer3 import GraphColorizer
+from graph_colorizer2 import GraphColorizer
 
 
 # for k in range(3,10):
