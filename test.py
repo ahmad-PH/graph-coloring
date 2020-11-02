@@ -275,40 +275,6 @@ class TestColorClassifier(unittest.TestCase):
             self.assertEqual(y_hat[adj_color].item(), 0.)
         
 
-class TestLossComputation(unittest.TestCase):
-    def setUp(self):
-        self.colorizer = GraphColorizer()
-    
-    def _one_hot(self, index, value):
-        result = torch.zeros(self.colorizer.n_possible_colors + 1)
-        result[index] = value
-        return result
-
-    def test_adj_penalty_decrease(self):
-        adj_colors = [0]
-        l1 = self.colorizer._compute_color_classifier_loss(self._one_hot(0, 0.9), adj_colors)
-        l2 = self.colorizer._compute_color_classifier_loss(self._one_hot(0, 0.8), adj_colors)
-        self.assertLess(l2, l1)
-
-    def test_new_color_penalty_decrease(self):
-        adj_colors = []
-        l1 = self.colorizer._compute_color_classifier_loss(self._one_hot(self.colorizer.n_possible_colors, 0.9), adj_colors)
-        l2 = self.colorizer._compute_color_classifier_loss(self._one_hot(self.colorizer.n_possible_colors, 0.8), adj_colors)
-        self.assertLess(l2, l1)
-
-    def test_adj_penalty_greater_than_new_color_penalty(self):
-        adj_colors = [1]
-        adj_penalty = self.colorizer._compute_color_classifier_loss(self._one_hot(1, 0.9), adj_colors)
-        new_color_penalty = self.colorizer._compute_color_classifier_loss(self._one_hot(self.colorizer.n_possible_colors, 0.9), adj_colors)
-        self.assertGreater(adj_penalty, new_color_penalty)    
-
-    def test_no_penalty_for_correct_choice(self):
-        adj_colors = [0,2]
-        loss = self.colorizer._compute_color_classifier_loss(self._one_hot(1, 0.9), adj_colors)
-        self.assertAlmostEqual(loss, 0.)
-
-
-
 class TestEWMAWithCorrection(unittest.TestCase):
     def test_no_values(self):
         avg = EWMAWithCorrection()
