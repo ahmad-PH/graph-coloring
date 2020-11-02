@@ -4,10 +4,11 @@ import math
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
 from graph_colorizer1 import GraphColorizer, ColorClassifier
+from graph import Graph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMA, generate_kneser_graph, generate_queens_graph, sort_graph_adj_list
+from utility import EWMAWithCorrection, generate_kneser_graph, generate_queens_graph, sort_graph_adj_list
 
 graph1 =  [
     [1, 3],
@@ -23,6 +24,28 @@ graph2 = [
     [0],
     [4],
     [3],
+]
+
+graph3 = [
+    [1,2,3,4,5],
+    [0,2,3,7],
+    [0,1,6],
+    [0,1],
+    [0],
+    [0],
+    [2],
+    [1]
+]
+
+slf_hard = [
+    [1,2,3,4],
+    [0,2,3,5],
+    [0,1],
+    [0,1],
+    [0,6,7],
+    [1,6,7],
+    [4,5,7],
+    [4,5,6],
 ]
 
 petersen_graph_manual = [
@@ -286,18 +309,18 @@ class TestLossComputation(unittest.TestCase):
 
 
 
-class TestEWMA(unittest.TestCase):
+class TestEWMAWithCorrection(unittest.TestCase):
     def test_no_values(self):
-        avg = EWMA()
+        avg = EWMAWithCorrection()
         self.assertEqual(avg.get_value(), 0.)
 
     def test_single_value(self):
-        avg = EWMA()
+        avg = EWMAWithCorrection()
         avg.update(1.0)
         self.assertEqual(avg.get_value(), 1.0)
 
     def test_multiple_values(self):
-        avg = EWMA(0.8)
+        avg = EWMAWithCorrection(0.8)
         avg.update(5.)
         avg.update(10.)
         avg.update(11.)
@@ -339,3 +362,9 @@ class TestQueensGraphGenerator(unittest.TestCase):
         self.assertListEqual(graph.adj_list[0], [1,2,3,4])
         self.assertListEqual(graph.adj_list[1], [0,2,3,4,5])
         self.assertListEqual(graph.adj_list[5], [1,2,3,4])
+
+
+class TestSLFHeuristic(unittest.TestCase):
+    def test_graph3(self):
+        ordering = slf_heuristic(graph3)
+        self.assertListEqual(ordering[:4], [0,1,2,3])
