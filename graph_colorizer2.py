@@ -17,14 +17,17 @@ class GraphColorizer(nn.Module):
         if loss_type not in ["reinforce"]:
             raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss))
         self.loss_type = loss_type
-        self.add_module("attn", 
+        self.add_module("attn_neighbors", 
             GraphAttentionLayer(self.embedding_size, self.embedding_size, dropout, alpha, True)
         )
-        self.add_module("attn2", 
+        self.add_module("attn_non_neighbors", 
             GraphAttentionLayer(self.embedding_size, self.embedding_size, dropout, alpha, True)
         ) # TEST: exists to test whether using non-neighbors helps
         self.add_module("color_classifier", 
             ColorClassifier(self.embedding_size, self.n_possible_colors)
+        )
+        self.add_module("update_embedding", # TEST
+            nn.Linear(2 * self.embedding_size, self.embedding_size)
         )
         self.device = device
         self.to(device)
@@ -33,16 +36,17 @@ class GraphColorizer(nn.Module):
         self.attn_a_norms : List[float] = [] # TEST
         self.classif_norms: List[List[float]] = [[], [], []] # TEST
 
-
     def forward(self, graph: Graph, baseline=None):
         embeddings = torch.normal(0, 0.1, (graph.n_vertices, self.embedding_size)).to(self.device)
-        adj_matrix = torch.tensor(adj_list_to_matrix(graph.adj_list) + np.eye(graph.n_vertices), requires_grad=False).to(self.device) 
-        # + np.eye is to make the matrix self-inclusive
-        inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix
+        with torch.no_grad():
+            adj_matrix = torch.tensor(adj_list_to_matrix(graph.adj_list), requires_grad=False).to(self.device) 
+            inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix - torch.eye(graph.n_vertices).to(self.device)
 
         for i in range(10):
-            embeddings = self.attn.forward(embeddings, adj_matrix)
-            embeddings = self.attn2.forward(embeddings, inverted_adj_matrix)
+            neighbor_updates = self.attn_neighbors.forward(embeddings, adj_matrix)
+            non_neighbor_updates = self.attn_non_neighbors.forward(embeddings, inverted_adj_matrix)
+            concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
+            embeddings = F.relu(embeddings + self.update_embedding(concatenated))
 
         vertex_order = slf_heuristic(graph.adj_list)
         colors = np.array([-1] * graph.n_vertices)
@@ -95,7 +99,7 @@ class ColorClassifier(nn.Module):
         super().__init__()
         self.embedding_size, self.n_possible_colors = embedding_size, n_possible_colors
         self.fc1 = nn.Linear(embedding_size, embedding_size)
-        self.fc2 = nn.Linear(embedding_size, 400)
+        self.fc2 = nn.Linear(embedding_size, 400) 
         self.fc3 = nn.Linear(400, n_possible_colors + 1) # +1 is for the "new color" case
         self.leaky_relu = nn.LeakyReLU()
         self.softmax = nn.Softmax(dim=1)
