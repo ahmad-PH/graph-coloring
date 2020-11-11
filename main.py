@@ -21,7 +21,7 @@ from graph_dataset import GraphDataset, GraphDatasetEager
 from dataset_generators import generate_erdos_renyi, generate_watts_strogatz
 from utility import generate_kneser_graph, generate_queens_graph
 
-from graph_colorizer2 import GraphColorizer
+from colorizer_7_attn_moreskip import GraphColorizer
 
 
 # for k in range(3,10):
@@ -120,25 +120,26 @@ def test_on_dataset():
         plt.plot(n_used_list[i])
         plt.show()
 
-    import sys
-    sys.exit()
-
 
 def test_on_single_graph():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    colorizer = GraphColorizer(loss_type="reinforce", device=device)
-    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.0001)
-    graph = Graph(graph1)
+    # graph = Graph(bipartite_10_vertices)
 
     # graph = generate_queens_graph(5,5)
     # graph = generate_queens_graph(6,6)
     # graph = generate_queens_graph(7,7)
-    # graph = generate_queens_graph(8,8)
+    graph = generate_queens_graph(8,8)
     # graph = generate_queens_graph(8,12)
     # graph = generate_queens_graph(11,11)
     # graph = generate_queens_graph(13,13)
 
+    # graph = GraphDatasetEager('../data/erdos_renyi_100/train')[0]
+
     # graph = Graph.from_networkx_graph(nx.erdos_renyi_graph(100, 0.5))
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # colorizer = GraphColorizer(loss_type="reinforce", device=device)
+    colorizer = GraphColorizer(loss_type="reinforce", graph=graph, device=device)
+    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.0001)
 
     # import random
     # random.seed(0)
@@ -164,7 +165,7 @@ def test_on_single_graph():
     best_answer_epoch = -1
     n_used_list = []
 
-    for i in range(100):
+    for i in range(200):
         print("\n\nepoch: {}".format(i))
         optimizer.zero_grad()
         coloring, loss = colorizer.forward(graph, baseline.get_value())
@@ -173,10 +174,10 @@ def test_on_single_graph():
         baseline.update(n_used_colors)
         loss.backward()
 
-        print('embedding grads: ', torch.mean(colorizer.embeddings.grad), torch.std(colorizer.embeddings.grad))
-        for j in range(colorizer.n_attn_layers):
-            print('attn grad:', torch.mean(colorizer.neighb_attns[j].W.grad), torch.std(colorizer.neighb_attns[j].W.grad))
-        print('classifier grad:', torch.mean(colorizer.color_classifier.fc1.weight.grad), torch.std(colorizer.color_classifier.fc1.weight.grad))
+        # print('embedding grads: ', torch.mean(colorizer.embeddings.grad), torch.std(colorizer.embeddings.grad))
+        # for j in range(colorizer.n_attn_layers):
+        #     print('attn grad:', torch.mean(colorizer.neighb_attns[j].W.grad), torch.std(colorizer.neighb_attns[j].W.grad))
+        # print('classifier grad:', torch.mean(colorizer.color_classifier.fc1.weight.grad), torch.std(colorizer.color_classifier.fc1.weight.grad))
 
         optimizer.step()
 
@@ -190,17 +191,20 @@ def test_on_single_graph():
 
     print('best answer is {} and first happened at epoch {}'.format(best_answer, best_answer_epoch))
     print('approx answer:', len(set(color.values()))) 
+    
+    from globals import data
+    print('appending:', best_answer)
+    data.results.append(best_answer)
+    # print(best_answer, file=data.file_writer)
+    # file_writer.flush()
 
-    plt.title('losses')
-    plt.plot(losses)
-    plt.figure()
-    plt.title('n_used')
-    plt.plot(n_used_list)
-    plt.plot(baselines)
-    plt.show()
-
-    import sys
-    sys.exit()
+    # plt.title('losses')
+    # plt.plot(losses)
+    # plt.figure()
+    # plt.title('n_used')
+    # plt.plot(n_used_list)
+    # plt.plot(baselines)
+    # plt.show()
 
 
 # # Test with single graph on embedding distance:
@@ -308,5 +312,14 @@ def test_on_single_graph():
     # generate_watts_strogatz('watts_strogatz', 400, 20, 20, 1000)
 
 if __name__=="__main__":
-    # test_on_dataset()
-    test_on_single_graph()
+    from globals import initialize_globals, free_globals, data
+    initialize_globals()
+    data.results = []
+    try:
+        # test_on_dataset()
+        for i in range(5):
+            test_on_single_graph()
+        print('results:', data.results)
+        print('mean, std:', np.mean(data.results), np.std(data.results)) 
+    finally:
+        free_globals()

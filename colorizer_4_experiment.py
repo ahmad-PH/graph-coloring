@@ -10,15 +10,19 @@ from matplotlib import pyplot as plt
 from utility import *
 
 class GraphColorizer(nn.Module):
-    def __init__(self, dropout=0.6, alpha=0.2, device="cpu", loss_type="reinforce"):
+    def __init__(self, dropout=0.6, alpha=0.2, graph: Graph = None, device="cpu", loss_type="reinforce"):
         super().__init__()
         self.embedding_size = 512 
         self.n_possible_colors = 256 
-        if loss_type not in ["reinforce"]:
-            raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss))
         self.loss_type = loss_type
 
-        # self.add_module("attn_neighbors", 
+        if loss_type not in ["reinforce"]:
+            raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss))
+
+        if graph == None:
+            raise ValueError("graph cannot be None in constructor.")
+
+        # self.add_module("attn_neighgraph: Graph = Nonebors", 
         #     GraphAttentionLayer(self.embedding_size, self.embedding_size, dropout, alpha, True)
         # )
         # self.add_module("attn_non_neighbors", 
@@ -39,7 +43,8 @@ class GraphColorizer(nn.Module):
 
         self.color_classifier = ColorClassifier(self.embedding_size, self.n_possible_colors)
         
-        self.embeddings = nn.Parameter(torch.normal(0, 1., (36, self.embedding_size)))
+        self.embeddings = nn.Parameter(torch.normal(0, 1., (graph.n_vertices, self.embedding_size)))
+        # self.embeddings = torch.normal(0, 1., (graph.n_vertices, self.embedding_size)).to(device)
 
         self.device = device
         self.to(device)
@@ -63,12 +68,6 @@ class GraphColorizer(nn.Module):
             adj_matrix = torch.tensor(adj_list_to_matrix(graph.adj_list), requires_grad=False).to(self.device) 
             inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix - torch.eye(graph.n_vertices).to(self.device)
 
-        for i in range(self.n_attn_layers):
-            neighbor_updates = F.relu(self.neighb_attns[i].forward(embeddings, adj_matrix))
-            non_neighbor_updates = F.relu(self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix))
-            concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
-            embeddings = F.relu(embeddings + self.attn_combiner[i].forward(concatenated))
-
         N = embeddings.size()[0] 
 
         embeddings_repeated_in_chunks = embeddings.repeat_interleave(N, dim=0)
@@ -82,16 +81,32 @@ class GraphColorizer(nn.Module):
         # distances = torch.norm(embeddings_repeated_in_chunks - embeddings_repeated_alternating, dim=1)
         # all_distances = distances.view(N, N)
 
-        with torch.no_grad():
-            # similarity_matrix = (2 * -adj_matrix + 1) - torch.eye(graph.n_vertices).to(self.device)
-            similarity_matrix = -adj_matrix
-            similarity_matrix = similarity_matrix.float()
+        # with torch.no_grad():
+        #     # similarity_matrix = (2 * -adj_matrix + 1) - torch.eye(graph.n_vertices).to(self.device)
+        #     similarity_matrix = -adj_matrix
+        #     similarity_matrix = similarity_matrix.float()
 
-        embedding_loss = torch.sum(all_distances * similarity_matrix)
-        alpha = 400.
-        triplet_loss = torch.max(embedding_loss + alpha, torch.tensor(0.).to(self.device))
+        # embedding_loss = torch.sum(all_distances * similarity_matrix)
 
-        print('embedding_loss: {}, triplet_loss: {}'.format(embedding_loss, triplet_loss))
+
+        # neighborhood_loss = - torch.sum(all_distances * adj_matrix.float() / torch.sum(adj_matrix, dim=1, keepdim=True))
+        # center = torch.mean(embeddings, dim=0)
+        # center_repeated = center.unsqueeze(0).expand(N, -1)
+        # compactness_loss = torch.sum(torch.norm(embeddings - center_repeated, dim=1))
+
+        # with torch.no_grad():
+            # neighborhood_dist = - neighborhood_loss.item()
+            # cent_dist = compactness_loss.item()
+            # print('neighbs_dist: {}, cent_dist: {}, ratio: {}'.format(neighborhood_dist, cent_dist, neighborhood_dist/cent_dist))
+
+            # import globals 
+            # globals.last_ratio = neighborhood_dist/cent_dist
+
+        for i in range(self.n_attn_layers):
+            neighbor_updates = F.relu(self.neighb_attns[i].forward(embeddings, adj_matrix))
+            non_neighbor_updates = F.relu(self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix))
+            concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
+            embeddings = F.relu(embeddings + self.attn_combiner[i].forward(concatenated))
 
         vertex_order = slf_heuristic(graph.adj_list)
         colors = np.array([-1] * graph.n_vertices)
@@ -102,6 +117,7 @@ class GraphColorizer(nn.Module):
 
         for vertex in vertex_order[1:]:
             adjacent_colors = self._get_adjacent_colors(vertex, graph, colors)
+            # classifier_out = self.color_classifier.forward(embeddings[vertex], torch.mean(embeddings, dim=0), n_used_colors, adjacent_colors)
             classifier_out = self.color_classifier.forward(embeddings[vertex], n_used_colors, adjacent_colors)
 
             # use output to determine next color (decode it)
@@ -120,15 +136,12 @@ class GraphColorizer(nn.Module):
             log_partial_prob += log_prob_part
 
         if baseline is None: raise ValueError('baseline cannot be None if loss type is `reinforcement`.')
-        print('log_partial_prob: {}'.format(log_partial_prob))
+        # print('log_partial_prob: {}'.format(log_partial_prob))
         reinforce_loss = (n_used_colors - baseline) * log_partial_prob / graph.n_vertices
-        # regularization_term = torch.norm(self.attn.W) + \
-        #         torch.norm(self.color_classifier.fc1.weight) + \
-        #         torch.norm(self.color_classifier.fc2.weight) + \
-        #         torch.norm(self.color_classifier.fc3.weight)
-        # print('reinforce loss: {}, regularization term: {}'.format(reinforce_loss, regularization_term))
-        loss = reinforce_loss + 0.1 * triplet_loss #+ 0.05 * regularization_term
-        print('loss: {}, reinforce loss: {}'.format(loss, reinforce_loss))
+        loss = reinforce_loss #+ 0.01 * (neighborhood_loss + compactness_loss)
+        # loss = neighborhood_loss + 0.01 * compactness_loss
+        print('neighb loss: {}, compactness loss: {}, reinforce loss: {} loss: {}'.format(
+            None, None, reinforce_loss, loss))
 
         return colors, loss
 
@@ -138,6 +151,50 @@ class GraphColorizer(nn.Module):
 
     def _assign_color(self, color, vertex, colors):
         colors[vertex] = color
+
+class ColorClassifierWithGraphEmbedding(nn.Module):
+    def __init__(self, embedding_size, n_possible_colors, run_assertions = True):
+        super().__init__()
+        self.embedding_size, self.n_possible_colors = embedding_size, n_possible_colors
+        self.fc1 = nn.Linear(embedding_size * 2, embedding_size)
+        self.fc2 = nn.Linear(embedding_size, 400)
+        self.fc3 = nn.Linear(400, n_possible_colors + 1) # +1 is for the "new color" case
+        self.leaky_relu = nn.LeakyReLU()
+        self.softmax = nn.Softmax(dim=1)
+        if run_assertions:
+            assert(self.embedding_size == 512)
+            assert(self.n_possible_colors == 256)
+
+    def _mask_irrelevant_colors(self, activations, n_used_colors):
+        mask = torch.tensor([0] * n_used_colors + [1] * (self.n_possible_colors - n_used_colors) + [0], \
+            dtype=torch.bool, requires_grad=False).to(activations.device)
+        mask = mask.repeat(activations.shape[0], 1)
+        return activations.masked_fill(mask, float("-inf"))
+
+    def _mask_colors(self, activations, colors):
+        mask = torch.tensor([False] * (self.n_possible_colors + 1), dtype=torch.bool, requires_grad=False).to(activations.device)
+        mask[colors] = True
+        mask = mask.repeat(activations.shape[0], 1)
+        return activations.masked_fill(mask, float("-inf"))
+
+    def forward(self, node_embedding, graph_embedding, n_used_colors, adj_colors = None):
+        if node_embedding.ndim == 1:
+            no_batch = True
+            node_embedding = torch.unsqueeze(node_embedding, 0)
+        else:
+            no_batch = False
+        graph_embedding = graph_embedding.unsqueeze(0).expand(node_embedding.shape[0], -1)
+        x = torch.cat([node_embedding, graph_embedding], dim=1)
+        x = self.leaky_relu(self.fc1(x))
+        x = self.leaky_relu(self.fc2(x))
+        x = self.fc3(x)
+        x = self._mask_irrelevant_colors(x, n_used_colors)
+        if adj_colors is not None:
+            x = self._mask_colors(x, adj_colors)
+        x = self.softmax(x)
+        if no_batch: x = x.squeeze(0)
+        return x
+
 
 class ColorClassifier(nn.Module):
     def __init__(self, embedding_size, n_possible_colors, run_assertions = True):
