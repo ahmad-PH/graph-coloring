@@ -3,7 +3,7 @@ import math
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from graph_colorizer1 import GraphColorizer, ColorClassifier
+from colorizer_1_plain import GraphColorizer, ColorClassifier
 from graph import Graph
 import torch
 import torch.nn as nn
