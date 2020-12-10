@@ -45,7 +45,6 @@ class MultiHeadAttentionOriginal(nn.Module):
 
     def forward(self, q, h=None, mask=None):
         """
-
         :param q: queries (batch_size, n_query, input_dim)
         :param h: data (batch_size, graph_size, input_dim)
         :param mask: mask (batch_size, n_query, graph_size) or viewable as that (i.e. can be 2 dim if n_query == 1)
@@ -101,15 +100,16 @@ class MultiHeadAttentionOriginal(nn.Module):
         return out
 
 
-
 class MultiHeadAttention(nn.Module):
     def __init__(
             self,
             n_heads,
-            input_dim,
+            input_q_dim,
+            input_h_dim,
             embed_dim=None,
             val_dim=None,
-            key_dim=None
+            key_dim=None,
+            pointer_mode=False
     ):
         super(MultiHeadAttention, self).__init__()
 
@@ -119,33 +119,37 @@ class MultiHeadAttention(nn.Module):
         if key_dim is None:
             key_dim = val_dim
 
+        if pointer_mode:
+            assert n_heads == 1, "n_heads must be 1 if pointer_mode is True"
+
         self.n_heads = n_heads
-        self.input_dim = input_dim
+        self.input_q_dim = input_q_dim
+        self.input_h_dim = input_h_dim
         self.embed_dim = embed_dim
         self.val_dim = val_dim
         self.key_dim = key_dim
+        self.pointer_mode = pointer_mode
 
         self.norm_factor = 1 / math.sqrt(key_dim)  # See Attention is all you need
 
-        self.W_query = nn.Parameter(torch.Tensor(n_heads, input_dim, key_dim))
-        self.W_key = nn.Parameter(torch.Tensor(n_heads, input_dim, key_dim))
-        self.W_val = nn.Parameter(torch.Tensor(n_heads, input_dim, val_dim))
+        self.W_query = nn.Parameter(torch.Tensor(n_heads, input_q_dim, key_dim))
+        self.W_key = nn.Parameter(torch.Tensor(n_heads, input_h_dim, key_dim))
+        self.W_val = nn.Parameter(torch.Tensor(n_heads, input_h_dim, val_dim))
 
-        if embed_dim is not None:
+        if pointer_mode == False:
             self.W_out = nn.Parameter(torch.Tensor(n_heads, val_dim, embed_dim))
 
         self.init_parameters()
 
     def init_parameters(self):
-
         for param in self.parameters():
             stdv = 1. / math.sqrt(param.size(-1))
             param.data.uniform_(-stdv, stdv)
 
     def forward(self, q, h=None, mask=None):
         """
-        :param q: queries (batch_size, n_query, input_dim)
-        :param h: data (batch_size, graph_size, input_dim)
+        :param q: queries (batch_size, n_query, input_q_dim)
+        :param h: data (batch_size, graph_size, input_h_dim)
         :param mask: mask (batch_size, n_query, graph_size) or viewable as that (i.e. can be 2 dim if n_query == 1)
         Mask should contain 1 if attention is not possible (i.e. mask is negative adjacency)
         :return:
@@ -154,14 +158,14 @@ class MultiHeadAttention(nn.Module):
             h = q  # compute self-attention
 
         # h should be (batch_size, graph_size, input_dim)
-        batch_size, graph_size, input_dim = h.size()
-        n_query = q.size(1)
-        assert q.size(0) == batch_size
-        assert q.size(2) == input_dim
-        assert input_dim == self.input_dim, "Wrong embedding dimension of input"
+        batch_size, graph_size, input_h_dim = h.size()
+        _, n_query, input_q_dim = q.size()
+        assert q.size(0) == batch_size, "Batch sizes don't match"
+        assert input_q_dim == self.input_q_dim, "Wrong dimensions for q"
+        assert input_h_dim == self.input_h_dim, "Wrong dimensions for h"
 
-        hflat = h.contiguous().view(-1, input_dim)
-        qflat = q.contiguous().view(-1, input_dim)
+        hflat = h.contiguous().view(-1, input_h_dim)
+        qflat = q.contiguous().view(-1, input_q_dim)
 
         # last dimension can be different for keys and values
         shp = (self.n_heads, batch_size, graph_size, -1)
@@ -181,13 +185,17 @@ class MultiHeadAttention(nn.Module):
             mask = mask.view(1, batch_size, n_query, graph_size).expand_as(compatibility)
             compatibility[mask] = -np.inf
 
-        attn = torch.softmax(compatibility, dim=-1)
+        attn = torch.softmax(compatibility, dim=-1) 
+        # attn.shape == (n_heads, batch_size, n_query, graph_size)
 
         # If there are nodes with no neighbours then softmax returns nan so we fix them to 0
         if mask is not None:
             attnc = attn.clone()
             attnc[mask] = 0
             attn = attnc
+
+        if self.pointer_mode:
+            return attn.squeeze(0) # remove the n_heads dimension since n_heads == 1
 
         heads = torch.matmul(attn, V)
 
@@ -197,16 +205,19 @@ class MultiHeadAttention(nn.Module):
 
         return out
 
+class MHAWithoutBatch(MultiHeadAttention):
+    def forward(self, q, h, mask=None):
+        q = q.unsqueeze(0)
+        h = h.unsqueeze(0)
+        return super().forward(q, h, mask=mask).squeeze(0)
 
-class MHAAdapter(MultiHeadAttention):
+class MHAAdapter(MHAWithoutBatch):
     def __init__(self, n_heads, input_dim, output_dim):
-        super().__init__(n_heads, input_dim, output_dim)
+        super().__init__(n_heads, input_dim, input_dim, output_dim, pointer_mode=False)
 
-    def forward(self, h, mask):
+    def forward(self, h, mask=None):
         mask = (1 - mask).bool()
-        h = h.unsqueeze(0) # adding a fake batch dimension
-        return super().forward(h, mask=mask).squeeze(0)
-
+        return super().forward(h, h, mask=mask).squeeze(0)
 
 # batch_size = 3
 # n_query = 2
@@ -220,9 +231,9 @@ class MHAAdapter(MultiHeadAttention):
 # attn_orig = MultiHeadAttentionOriginal(n_heads=6, input_dim=input_dim, key_dim=5, embed_dim=18)
 
 # torch.random.manual_seed(0)
-# attn = MultiHeadAttention(n_heads=6, input_dim=input_dim, key_dim=5, embed_dim=18)
+# attn = MultiHeadAttention(n_heads=6, input_q_dim=input_dim, input_h_dim=input_dim, key_dim=5, embed_dim=18)
 
 # out_orig = attn_orig.forward(q, h)
 # out = attn(q, h)
 
-# print(torch.allclose(out, out_ref))
+# print(torch.allclose(out_orig, out))
