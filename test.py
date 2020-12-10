@@ -4,7 +4,7 @@ import math
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
 from colorizer_1_plain import GraphColorizer, ColorClassifier
-from colorizer_6_mha import GraphColorizer as MHAGraphColorizer
+from colorizer_8_pointer_netw import GraphColorizer as PointerColorizer
 from graph import Graph
 import torch
 import torch.nn as nn
@@ -337,10 +337,10 @@ class TestSLFHeuristic(unittest.TestCase):
         self.assertListEqual(ordering[:4], [0,1,2,3])
 
 
-class TestMHAGraphColorizer(unittest.TestCase):
+class TestPointerColorizer(unittest.TestCase):
     def setUp(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.colorizer = MHAGraphColorizer(device=self.device)
+        self.colorizer = PointerColorizer(device=self.device)
         self.n_possible_colors = self.colorizer.n_possible_colors
 
     def test_full_mask(self):
