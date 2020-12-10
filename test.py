@@ -4,6 +4,7 @@ import math
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
 from colorizer_1_plain import GraphColorizer, ColorClassifier
+from colorizer_6_mha import GraphColorizer as MHAGraphColorizer
 from graph import Graph
 import torch
 import torch.nn as nn
@@ -334,3 +335,39 @@ class TestSLFHeuristic(unittest.TestCase):
     def test_graph3(self):
         ordering = slf_heuristic(graph3)
         self.assertListEqual(ordering[:4], [0,1,2,3])
+
+
+class TestMHAGraphColorizer(unittest.TestCase):
+    def setUp(self):
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.colorizer = MHAGraphColorizer(device=self.device)
+        self.n_possible_colors = self.colorizer.n_possible_colors
+
+    def test_full_mask(self):
+        mask = self.colorizer._get_pointer_mask(0, []).squeeze(0)
+        for i in range(0, self.n_possible_colors):
+            self.assertEqual(mask[i], True)
+        self.assertEqual(mask[self.n_possible_colors], False)
+
+    def test_some_used_no_adj(self):
+        mask = self.colorizer._get_pointer_mask(3, []).squeeze(0)
+        for i in range(0, 3):
+            self.assertEqual(mask[i], False)
+        for i in range(4, self.n_possible_colors):
+            self.assertEqual(mask[i], True)
+        self.assertEqual(mask[self.n_possible_colors], False)
+
+    def test_some_used_some_adj(self):
+        mask = self.colorizer._get_pointer_mask(4, [0,2]).squeeze(0)
+        self.assertEqual(mask[0], True)
+        self.assertEqual(mask[1], False)
+        self.assertEqual(mask[2], True)
+        self.assertEqual(mask[3], False)
+        for i in range(4, self.n_possible_colors):
+            self.assertEqual(mask[i], True)
+        self.assertEqual(mask[self.n_possible_colors], False)
+
+    def test_all_used(self):
+        mask = self.colorizer._get_pointer_mask(self.n_possible_colors, []).squeeze(0)
+        for i in range(0, self.n_possible_colors + 1):
+            self.assertEqual(mask[i], False)
