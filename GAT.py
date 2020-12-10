@@ -30,6 +30,11 @@ class GraphAttentionLayer(nn.Module):
         #     nn.ReLU(),
         #     nn.Linear(out_features, 1)
         # )
+        # def w_init(l):
+        #     if isinstance(l, nn.Linear):
+        #         nn.init.xavier_uniform_(l.weight.data, gain=1.414)
+
+        # self.a.apply(w_init)
 
         self.leakyrelu = nn.LeakyReLU(self.alpha)
 
