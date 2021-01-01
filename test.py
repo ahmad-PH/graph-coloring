@@ -38,6 +38,17 @@ graph3 = [
     [1]
 ]
 
+graph4 = [
+    [1,2,3],
+    [0,4],
+    [0,4],
+    [0,4],
+    [1,2,3,5,6],
+    [4,7],
+    [4,7],
+    [5,6]
+]
+
 slf_hard = [
     [1,2,3,4],
     [0,2,3,5],
@@ -371,3 +382,34 @@ class TestPointerColorizer(unittest.TestCase):
         mask = self.colorizer._get_pointer_mask(self.n_possible_colors, []).squeeze(0)
         for i in range(0, self.n_possible_colors + 1):
             self.assertEqual(mask[i], False)
+
+
+class TestColoringCheckers(unittest.TestCase):
+    def test_is_proper_coloring_true(self):
+        self.assertTrue(is_proper_coloring([0, 1, 1, 0, 1], graph2))
+
+    def test_is_proper_coloring_false(self):
+        self.assertFalse(is_proper_coloring([0, 0, 1, 0, 1], graph2))
+    
+    def test_coloring_properties_graph2_false(self):
+        is_proper, n_violations, violation_ratio = coloring_properties([0, 0, 1, 0, 1], graph2)
+        self.assertFalse(is_proper)
+        self.assertEqual(n_violations, 1)
+        self.assertAlmostEqual(violation_ratio, 1./3.)
+
+    def test_coloring_properties_graph2_true(self):
+        is_proper, n_violations, violation_ratio = coloring_properties([0, 1, 1, 0, 1], graph2)
+        self.assertTrue(is_proper)
+        self.assertEqual(n_violations, 0)
+        self.assertEqual(violation_ratio, 0.)
+
+    def test_coloring_properties_graph1(self):
+        is_proper, n_violations, violation_ratio = coloring_properties([0, 1, 1, 1, 0], graph1)
+        self.assertFalse(is_proper)
+        self.assertEqual(n_violations, 2)
+        self.assertAlmostEqual(violation_ratio, 2./7.)
+
+    
+
+    
+    
