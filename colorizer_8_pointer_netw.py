@@ -18,19 +18,26 @@ class GraphColorizer(nn.Module):
         self.loss_type = loss_type
 
         if loss_type not in ["reinforce"]:
-            raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss))
+            raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss_type))
 
         self.n_attn_layers = 3 # TEST: used to be 10
-        self.neighb_attns = nn.ModuleList([MHAAdapter(8, self.embedding_size, self.embedding_size) \
-            for _ in range(self.n_attn_layers)])
-        self.non_neighb_attns = nn.ModuleList([MHAAdapter(8, self.embedding_size, self.embedding_size) \
-            for _ in range(self.n_attn_layers)])
-        # self.attn_combiner = nn.ModuleList([nn.Linear(2*self.embedding_size, self.embedding_size) \
-            # for _ in range(self.n_attn_layers)])
+
+        self.neighb_attns = nn.ModuleList([
+            MHAAdapter(8, self.embedding_size, self.embedding_size, name="neighb_attn_{}".format(i)) \
+            for i in range(self.n_attn_layers)])
+
+        self.non_neighb_attns = nn.ModuleList([
+            MHAAdapter(8, self.embedding_size, self.embedding_size, name="non_neighb_attn_{}".format(i)) \
+            for i in range(self.n_attn_layers)])
+
+        # self.attn_combiner = nn.ModuleList([
+        #     nn.Linear(2*self.embedding_size, self.embedding_size) \
+        #     for i in range(self.n_attn_layers)])
 
         self.attn_combiner = nn.ModuleList([nn.Sequential(
                 nn.Linear(2*self.embedding_size, 2*self.embedding_size),
                 nn.ReLU(),
+                # nn.LeakyReLU(0.05),
                 nn.Linear(2*self.embedding_size, self.embedding_size)
             ) for _ in range(self.n_attn_layers)
         ])
