@@ -1,5 +1,5 @@
-
 import networkx as nx
+from utility import adj_list_to_matrix
 
 def networkx_graph_to_adj_list(graph):
     adj_list = []
@@ -7,12 +7,13 @@ def networkx_graph_to_adj_list(graph):
         adj_list.append(sorted(graph.adj[i].keys()))
     return adj_list
 
-
 class Graph:
     def __init__(self, adj_list):
         self.adj_list = adj_list
         self.nx_graph = None
         self.n_vertices = len(adj_list)
+        self.n_edges = sum(len(row) for row in adj_list) / 2
+        self.adj_matrix = adj_list_to_matrix(self.adj_list)
     
     @staticmethod
     def from_networkx_graph(graph):
