@@ -9,9 +9,11 @@ from graph import Graph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMAWithCorrection, generate_kneser_graph, generate_queens_graph, sort_graph_adj_list
+from utility import EWMAWithCorrection
+from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
+    is_proper_coloring, coloring_properties
 
-graph1 =  [
+graph1 = [
     [1, 3],
     [0, 2, 3, 4],
     [1, 4],
@@ -408,8 +410,4 @@ class TestColoringCheckers(unittest.TestCase):
         self.assertFalse(is_proper)
         self.assertEqual(n_violations, 2)
         self.assertAlmostEqual(violation_ratio, 2./7.)
-
-    
-
-    
-    
+        

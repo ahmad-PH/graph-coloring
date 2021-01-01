@@ -19,10 +19,9 @@ from networkx.algorithms.community.kclique import k_clique_communities
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
 from graph_dataset import GraphDataset, GraphDatasetEager
 from dataset_generators import generate_erdos_renyi, generate_watts_strogatz
-from utility import generate_kneser_graph, generate_queens_graph
+from graph_utility import generate_kneser_graph, generate_queens_graph
 
-from colorizer_7_attn_moreskip import GraphColorizer
-
+from colorizer_8_pointer_netw import GraphColorizer
 
 # for k in range(3,10):
 #     for n in range(2*k+1, 2*k+7):
