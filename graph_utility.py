@@ -1,23 +1,23 @@
 from graph import Graph
 import itertools
 
-def is_proper_coloring(coloring, adj_list):
-    for v1, row in enumerate(adj_list):
+def is_proper_coloring(coloring, graph):
+    for v1, row in enumerate(graph.adj_list):
         for v2 in row:
             if coloring[v1] == coloring[v2]:
                 return False
     return True
 
-def coloring_properties(coloring, adj_list):
+def coloring_properties(coloring, graph):
     n_violations = 0
-    for v1, row in enumerate(adj_list):
+    for v1, row in enumerate(graph.adj_list):
         for v2 in row:
             if coloring[v1] == coloring[v2]:
                 n_violations += 1
                 # print('violation: ({}, {})'.format(v1, v2))
 
     n_violations /= 2 # because we counted each twice
-    return n_violations == 0, n_violations, float(n_violations) / Graph(adj_list).n_edges
+    return n_violations == 0, n_violations, float(n_violations) / graph.n_edges
 
 
 def generate_kneser_graph(n, k):
@@ -28,7 +28,7 @@ def generate_kneser_graph(n, k):
             if subsets[i].isdisjoint(subsets[j]):
                 adj_list[i].append(j)
                 adj_list[j].append(i)
-    return Graph(adj_list)
+    return Graph(adj_list, 'k{}_{}'.format(n, k))
 
 def kneser_graph_chromatic_number(n, k):
     if n < 2 * k:
@@ -64,7 +64,7 @@ def generate_queens_graph(m, n):
                     adj_list[index].append(chess_coord_to_vertex_ind(i2, j2))
 
 
-    return Graph(adj_list)
+    return Graph(adj_list, 'q{}_{}'.format(m, n))
             
 
 def sort_graph_adj_list(adj_list):
