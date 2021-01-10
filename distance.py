@@ -14,6 +14,8 @@ from graph_dataset import GraphDataset, GraphDatasetEager
 from globals import data
 import networkx as nx
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
+import os
+import sys
 
 neighborhood_losses_p1 : List[float] = []
 compactness_losses_p1 : List[float] = []
@@ -86,6 +88,7 @@ def correct_coloring(coloring, graph):
 #          8, 11,  9,  2,  0, 12,  3])
 
 # from utility import generate_queens_graph
+
 # graph = generate_queens_graph(6, 6)
 
 # correct_coloring(c, graph)
@@ -184,6 +187,7 @@ def reinitialize_embeddings(embeddings, loss_function, ratio = 0.1, n_candidates
 
 def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    results = DataDump()
 
     embeddings = initialize_embeddings(graph.n_vertices, embedding_dim, mode="normal", device=device)
 
@@ -210,10 +214,6 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         for i in range(graph.n_vertices):
             global_overlap_matrix[i][i] = 0 
             global_overlap_matrix[i][graph.adj_list[i]] = 0 # suppress entries of neighbors
-            # print('i: {}'.format(i))
-            # print(torch.matrix_power(overlap_matrix, i))
-        # print('global:')
-        # print(global_overlap_matrix)
 
         lambda_3 = 5.
         similarity_matrix = inverted_adj_matrix + lambda_3 * global_overlap_matrix
@@ -240,7 +240,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         # compactness_loss = torch.sum(torch.norm(embeddings - center_repeated, dim=1) ** 2)
 
         # compactness_loss = torch.sum(distances * inverted_adj_matrix.float() / torch.sum(inverted_adj_matrix, dim=1, keepdim=True))
-        compactness_loss = torch.sum(distances * similarity_matrix.float() / torch.sum(similarity_matrix, dim=1, keepdim=True))
+        compactness_loss = torch.sum(distances * similarity_matrix.float() / (torch.sum(similarity_matrix, dim=1, keepdim=True) + 1e-10))
 
         lambda_1 = 0.05
         loss = (1 - lambda_1) * neighborhood_loss + lambda_1 * compactness_loss
@@ -272,9 +272,9 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     for i in range(100):
         optimizer.zero_grad()
 
-        if i % 20 == 0 and i != 0: 
-            embeddings = reinitialize_embeddings(embeddings,
-                loss_function=lambda emb: compute_neighborhood_losses(emb, adj_matrix))
+        # if i % 20 == 0 and i != 0: 
+        #     embeddings = reinitialize_embeddings(embeddings,
+        #         loss_function=lambda emb: compute_neighborhood_losses(emb, adj_matrix))
 
         neighborhood_loss = compute_neighborhood_losses(embeddings, adj_matrix).sum()
         
@@ -296,11 +296,14 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
  
     colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
     colors = colors.detach().cpu().numpy()
+    properties = coloring_properties(colors, graph.adj_list)
+    results.violation_ratio = properties[2]
+
     if verbose:
         print('colors:')
         print(colors)
         print('properties:')
-        print(coloring_properties(colors, graph.adj_list))
+        print(properties)
 
         plt.figure()
         plot_points(embeddings, annotate=True)
@@ -331,63 +334,130 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
         plt.show()
 
-    return embeddings
+    results.n_used_colors = len(set(colors))
+    return embeddings, results
 
-embedding_dim = 10
-n_clusters = 7
+# mode = "single_run"
+mode = "dataset_run"
 
-graph = generate_queens_graph(6, 6)
+if mode == "single_run":
 
-# # knesser graph:
-# n, k = 10, 3
-# graph = generate_kneser_graph(n, k)
-# print(graph.n_vertices, graph.n_edges, kneser_graph_chromatic_number(n, k))
+    embedding_dim = 10
+    n_clusters = 7
 
-# graph = Graph(petersen_graph)
-# graph = GraphDatasetEager('../data/erdos_renyi_100/train')[0]
-# greedy_color = greedy_color(graph.get_nx_graph(), strategy="DSATUR") 
-# print(len(set(greedy_color.values())))
+    graph = generate_queens_graph(7,7)
+    # graph = generate_queens_graph(20, 20)
 
-seed = np.random.randint(0, 1000000)
-# seed = 348266 # peterson 1:
-# seed = 266412
-# seed = 72511 # error on peterson with dim=2
-# seed = 66009 # error on peterson with dim=10
-# seed = 682580 # error on peterson with dim = 10
-# seed = 62843 # error on q7_7 with dim=10
-# seed = 11698
-# seed = 232231
-# seed = 874581 # n_color = 16 for q13_13 with jaccard multiplier of 5
-# seed = 619964
+    # # knesser graph:
+    # n, k = 10, 3
+    # graph = generate_kneser_graph(n, k)
+    # print(graph.n_vertices, graph.n_edges, kneser_graph_chromatic_number(n, k))
 
-torch.random.manual_seed(seed)
-np.random.seed(seed)
-print('seed is: ', seed)
+    # graph = Graph(petersen_graph)
+    # graph = GraphDatasetEager('../data/erdos_renyi_100/train')[0]
+    # greedy_color = greedy_color(graph.get_nx_graph(), strategy="DSATUR") 
+    # print(len(set(greedy_color.values())))
 
-embeddings = learn_embeddings(graph, n_clusters, embedding_dim, verbose=True)
-# print('adj list:')
-# for i in range(len(graph.adj_list)):
-#     print('{}: {}'.format(i, graph.adj_list[i]))
+    seed = np.random.randint(0, 1000000)
+    # seed = 348266 # peterson 1:
+    # seed = 266412
+    # seed = 72511 # error on peterson with dim=2
+    # seed = 66009 # error on peterson with dim=10
+    # seed = 682580 # error on peterson with dim = 10
+    # seed = 62843 # error on q7_7 with dim=10
+    # seed = 11698
+    # seed = 232231
+    # seed = 874581 # n_color = 16 for q13_13 with jaccard multiplier of 5
+    # seed = 619964
 
-# print('embeddings')
-# for i in range(embeddings.shape[0]):
-#     print('{}: {}'.format(i, embeddings[i].data))
-# print(embeddings.shape)
+    torch.random.manual_seed(seed)
+    np.random.seed(seed)
+    print('seed is: ', seed)
+
+    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=True)
+
+    print('results:')
+    print(results)
+    # print('adj list:')
+    # for i in range(len(graph.adj_list)):
+    #     print('{}: {}'.format(i, graph.adj_list[i]))
+
+    # print('embeddings')
+    # for i in range(embeddings.shape[0]):
+    #     print('{}: {}'.format(i, embeddings[i].data))
+    # print(embeddings.shape)
 
 
-# torch.save(embeddings, 'q13_13.pt')
+    # torch.save(embeddings, 'q6_6.pt')
 
-# plot the losses:
-plt.plot(neighborhood_losses_p1, label='neighborhood')
-plt.plot(compactness_losses_p1, label='compactness')
-plt.plot(losses_p1, label='overall')
-plt.legend()
-plt.show()
-plt.figure()
+    # plot the losses:
+    plt.plot(neighborhood_losses_p1, label='neighborhood')
+    plt.plot(compactness_losses_p1, label='compactness')
+    plt.plot(losses_p1, label='overall')
+    plt.legend()
+    plt.show()
+    plt.figure()
 
-plt.plot(neighborhood_losses_p2, label='neighborhood_p2')
-plt.plot(compactness_losses_p2, label='compactness_p2')
-plt.plot(losses_p2, label='overall_p2')
-plt.legend()
-plt.show()
-plt.figure()
+    plt.plot(neighborhood_losses_p2, label='neighborhood_p2')
+    plt.plot(compactness_losses_p2, label='compactness_p2')
+    plt.plot(losses_p2, label='overall_p2')
+    plt.legend()
+    plt.show()
+    plt.figure()
+
+elif mode == "dataset_run":
+    # if os.path.exists('results.txt'):
+    #     print('results.txt exists.')
+    #     sys.exit(0)
+
+    embedding_dim = 10
+
+    dataset = [
+        (graph1, 3),
+        (graph2, 2),
+        (graph3, 3),
+        (bipartite_10_vertices, 2),
+        (slf_hard, 3),
+        (petersen_graph, 3),
+        (generate_queens_graph(5,5), 5),
+        (generate_queens_graph(6,6), 7),
+        (generate_queens_graph(7,7), 7),
+        (generate_queens_graph(8,8), 9),
+        (generate_queens_graph(8,12), 12),
+        (generate_queens_graph(13, 13), 13)
+    ]
+
+    n_runs_per_graph = 10
+
+    with open('results.txt', 'w') as out:
+        summary = []
+        for graph, n_clusters in dataset:
+            seed = np.random.randint(0, 1000000)
+            torch.random.manual_seed(seed)
+            np.random.seed(seed)
+
+            print('results for graph: ', graph.name, file=out)
+            print('(seed is: {})'.format(seed), file=out)
+            results_list = []
+            for i in range(n_runs_per_graph):
+                _ , results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
+                results_list.append(results)
+            
+            violation_ratio_list = np.array([result.violation_ratio for result in results_list])
+            n_used_colors_list = np.array([result.n_used_colors for result in results_list])
+
+            print('violation_ratio: {}'.format(np.mean(violation_ratio_list)), file=out)
+            print('n_used stats: {}, {}'.format(np.mean(n_used_colors_list), np.std(n_used_colors_list)), file=out)
+            print('n_used: {}'.format(n_used_colors_list), file=out)
+            summary.append([np.mean(n_used_colors_list), np.std(n_used_colors_list), np.mean(violation_ratio_list)])
+            print('\n\n', file=out)
+            out.flush()
+
+        print('summary:', file=out)
+        for item in summary:
+            print(', '.join(str(i) for i in item), file=out)
+        
+        
+
+
+
