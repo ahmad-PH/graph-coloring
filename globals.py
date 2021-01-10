@@ -1,16 +1,8 @@
 from io import TextIOWrapper
-
-class DataDump:
-	def __init__(self):
-		object.__setattr__(self, "data", {})
-
-	def __setattr__(self, name, value):
-		self.data[name] = value
-
-	def __getattr__(self, name):
-		return self.data[name]
+from utility import DataDump
 
 data = DataDump()
+debug_mode = False
 
 def initialize_globals():
     global data
