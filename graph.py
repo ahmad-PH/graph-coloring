@@ -8,7 +8,8 @@ def networkx_graph_to_adj_list(graph):
     return adj_list
 
 class Graph:
-    def __init__(self, adj_list):
+    def __init__(self, adj_list, name=None):
+        self.name = name
         self.adj_list = adj_list
         self.nx_graph = None
         self.n_vertices = len(adj_list)
