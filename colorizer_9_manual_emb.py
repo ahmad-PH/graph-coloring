@@ -21,12 +21,13 @@ class GraphColorizer(nn.Module):
             raise ValueError("unrecognized `loss` value at GraphColorizer: {}".format(loss_type))
 
         self.n_attn_layers = 4 # TEST: used to be 10
+        embedding_dim = 10
         self.neighb_attns = nn.ModuleList(
-            [MHAAdapter(8, 5, self.embedding_size)] + 
+            [MHAAdapter(8, embedding_dim, self.embedding_size)] + 
             [MHAAdapter(8, self.embedding_size, self.embedding_size) for _ in range(self.n_attn_layers - 1)]
         )
         self.non_neighb_attns = nn.ModuleList(
-            [MHAAdapter(8, 5, self.embedding_size)] + 
+            [MHAAdapter(8, embedding_dim, self.embedding_size)] + 
             [MHAAdapter(8, self.embedding_size, self.embedding_size) for _ in range(self.n_attn_layers - 1)]
         )
         # self.attn_combiner = nn.ModuleList([nn.Linear(2*self.embedding_size, self.embedding_size) \
@@ -45,7 +46,8 @@ class GraphColorizer(nn.Module):
         self.pointer_network = MHAWithoutBatch(1, self.embedding_size, self.embedding_size, self.embedding_size, pointer_mode=True)
         self.new_color_embedding = nn.Parameter(torch.normal(0, 0.1, (self.embedding_size,)))
 
-        self.embeddings = nn.Parameter(torch.load('q8_8.pt').to(device))
+        # self.embeddings = nn.Parameter(torch.load('q6_6.pt').to(device))
+        self.embeddings = torch.load('q6_6.pt').to(device)
         # self.embeddings = nn.Parameter(torch.normal(0, .1, (graph.n_vertices, self.embedding_size)))
         # self.color_embeddings = nn.Parameter(torch.normal(0, 0.1, (self.n_possible_colors + 1, self.embedding_size)))
 
