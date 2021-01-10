@@ -296,7 +296,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
  
     colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
     colors = colors.detach().cpu().numpy()
-    properties = coloring_properties(colors, graph.adj_list)
+    properties = coloring_properties(colors, graph)
     results.violation_ratio = properties[2]
 
     if verbose:
