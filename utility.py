@@ -38,7 +38,6 @@ class EWMAWithCorrection:
     def get_value(self):
         return self._corrected
 
-
 class EWMA:
     def __init__(self, beta=0.95):
         self._avg = 0.
@@ -52,6 +51,20 @@ class EWMA:
 
     def get_value(self):
         return self._avg
+
+class DataDump:
+    def __init__(self):
+        object.__setattr__(self, "data", {})
+
+    def __setattr__(self, name, value):
+        self.data[name] = value
+
+    def __getattr__(self, name):
+        return self.data[name]
+
+    def __repr__(self):
+        return self.data.__repr__()
+
 
 # class ComparableContainer:
 #     def __init__(self, item, key):
