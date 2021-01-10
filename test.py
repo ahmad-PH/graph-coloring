@@ -3,7 +3,7 @@ import math
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from colorizer_1_plain import GraphColorizer, ColorClassifier
+from colorizer_1_plain import ColorClassifier
 from colorizer_8_pointer_netw import GraphColorizer as PointerColorizer
 from graph import Graph
 import torch
@@ -13,23 +13,23 @@ from utility import EWMAWithCorrection
 from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
     is_proper_coloring, coloring_properties
 
-graph1 = [
+graph1 = Graph([
     [1, 3],
     [0, 2, 3, 4],
     [1, 4],
     [0, 1, 4],
     [1, 2, 3],
-]
+], 'graph1')
 
-graph2 = [
+graph2 = Graph([
     [1,2],
     [0],
     [0],
     [4],
     [3],
-]
+], 'graph2')
 
-graph3 = [
+graph3 = Graph([
     [1,2,3,4,5],
     [0,2,3,7],
     [0,1,6],
@@ -38,9 +38,9 @@ graph3 = [
     [0],
     [2],
     [1]
-]
+], 'graph3')
 
-graph4 = [
+graph4 = Graph([
     [1,2,3],
     [0,4],
     [0,4],
@@ -49,9 +49,9 @@ graph4 = [
     [4,7],
     [4,7],
     [5,6]
-]
+], 'graph4')
 
-slf_hard = [
+slf_hard = Graph([
     [1,2,3,4],
     [0,2,3,5],
     [0,1],
@@ -60,9 +60,9 @@ slf_hard = [
     [1,6,7],
     [4,5,7],
     [4,5,6],
-]
+], 'slf_hard')
 
-petersen_graph_manual = [
+petersen_graph_manual = Graph([
     [1,4,5], # 0
     [0,2,6], # 1
     [1,3,7], # 2
@@ -73,9 +73,9 @@ petersen_graph_manual = [
     [2,5,9], # 7
     [3,5,6], # 8
     [4,6,7], # 9
-]
+], 'petersen_manual')
 
-petersen_graph = [
+petersen_graph = Graph([
     [7, 8, 9], # 0
     [5, 6, 9], # 1
     [4, 6, 8], # 2
@@ -86,9 +86,9 @@ petersen_graph = [
     [0, 3, 6], # 7
     [0, 2, 5], # 8
     [0, 1, 4], # 9
-]
+], 'petersen')
 
-bipartite_10_vertices = [
+bipartite_10_vertices = Graph([
     [5,6,7,8,9], # 0
     [5,6,7,8,9], # 1
     [5,6,7,8,9], # 2
@@ -99,42 +99,42 @@ bipartite_10_vertices = [
     [0,1,2,3,4], # 7
     [0,1,2,3,4], # 8
     [0,1,2,3,4], # 9
-]
+], 'bipartite_10_vertices')
 
 class TestHighestColoredNeighborHeuristic(unittest.TestCase):
     def test_graph1(self):
-        self.assertListEqual(highest_colored_neighbor_heuristic(graph1), [1, 0, 3, 4, 2])
+        self.assertListEqual(highest_colored_neighbor_heuristic(graph1.adj_list), [1, 0, 3, 4, 2])
 
     def test_graph2(self):
-        self.assertListEqual(highest_colored_neighbor_heuristic(graph2), [0, 1, 2, 3, 4])
+        self.assertListEqual(highest_colored_neighbor_heuristic(graph2.adj_list), [0, 1, 2, 3, 4])
 
 
 class TestDynamicOrderedHeuristic(unittest.TestCase):
     def test_graph1(self):
-        self.assertListEqual(dynamic_ordered_heuristic(graph1), [1,3,2,0,4])
+        self.assertListEqual(dynamic_ordered_heuristic(graph1.adj_list), [1,3,2,0,4])
 
     def test_reduces_degrees_dynamically(self):
-        self.assertListEqual(dynamic_ordered_heuristic(graph2), [0,3,1,2,4])
+        self.assertListEqual(dynamic_ordered_heuristic(graph2.adj_list), [0,3,1,2,4])
 
 
 class TestColorizeUsingHeuristic(unittest.TestCase):
     def test_unordered_graph1(self):
-        colors, n_colors = colorize_using_heuristic(graph1, unordered_heuristic)
+        colors, n_colors = colorize_using_heuristic(graph1.adj_list, unordered_heuristic)
         self.assertListEqual(list(colors), [0, 1, 0, 2, 3])
         self.assertEqual(n_colors, 4)
 
     def test_ordered_graph1(self):
-        colors, n_colors = colorize_using_heuristic(graph1, ordered_heuristic)
+        colors, n_colors = colorize_using_heuristic(graph1.adj_list, ordered_heuristic)
         self.assertListEqual(list(colors), [2, 0, 1, 1, 2])
         self.assertEqual(n_colors, 3)
 
     def test_dynamic_ordered_graph2(self):
-        colors, n_colors = colorize_using_heuristic(graph2, dynamic_ordered_heuristic)
+        colors, n_colors = colorize_using_heuristic(graph2.adj_list, dynamic_ordered_heuristic)
         self.assertListEqual(list(colors), [0, 1, 1, 0, 1])
         self.assertEqual(n_colors, 2)
 
     def test_highest_colored_neighbor_graph2(self):
-        colors, n_colors = colorize_using_heuristic(graph2, highest_colored_neighbor_heuristic)
+        colors, n_colors = colorize_using_heuristic(graph2.adj_list, highest_colored_neighbor_heuristic)
         self.assertListEqual(list(colors), [0, 1, 1, 0, 1])
         self.assertEqual(n_colors, 2)
 
@@ -271,7 +271,7 @@ class TestColorClassifier(unittest.TestCase):
             loss.backward()
             optimizer.step()
         
-        self.assertLess(loss.item(), 0.00001)
+        self.assertLess(loss.item(), 1e-4)
 
     def test_neighboring_colors_masked_properly(self):
         embedding_size = 100
@@ -310,7 +310,7 @@ class TestEWMAWithCorrection(unittest.TestCase):
 class TestKneserGraphGenerator(unittest.TestCase):
     def test_petersen_graph(self):
         graph = generate_kneser_graph(5,2)
-        self.assertListEqual(graph.adj_list, petersen_graph)
+        self.assertListEqual(graph.adj_list, petersen_graph.adj_list)
     
     def test_complete_graph(self):
         graph = generate_kneser_graph(4, 1)
@@ -346,7 +346,7 @@ class TestQueensGraphGenerator(unittest.TestCase):
 
 class TestSLFHeuristic(unittest.TestCase):
     def test_graph3(self):
-        ordering = slf_heuristic(graph3)
+        ordering = slf_heuristic(graph3.adj_list)
         self.assertListEqual(ordering[:4], [0,1,2,3])
 
 
@@ -410,4 +410,3 @@ class TestColoringCheckers(unittest.TestCase):
         self.assertFalse(is_proper)
         self.assertEqual(n_violations, 2)
         self.assertAlmostEqual(violation_ratio, 2./7.)
-        
