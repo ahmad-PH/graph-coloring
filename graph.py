@@ -9,7 +9,7 @@ def networkx_graph_to_adj_list(graph):
 
 class Graph:
     def __init__(self, adj_list, name=None):
-        self.name = name
+        self.set_name(name)
         self.adj_list = adj_list
         self.nx_graph = None
         self.n_vertices = len(adj_list)
@@ -44,6 +44,10 @@ class Graph:
         if self.nx_graph is None:
             self.nx_graph = self._calculate_nx_graph()
         return self.nx_graph
+
+    def set_name(self, name):
+        self.name = name
+        return self
 
     def _calculate_nx_graph(self):
         G = nx.Graph()
