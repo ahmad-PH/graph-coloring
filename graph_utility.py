@@ -1,5 +1,10 @@
 from graph import Graph
 import itertools
+from networkx.algorithms.coloring.greedy_coloring import greedy_color
+
+def greedy_coloring_number(graph, strategy):
+    if isinstance(graph, Graph): graph = graph.get_nx_graph()
+    return len(set(greedy_color(graph, strategy).values()))
 
 def is_proper_coloring(coloring, graph):
     for v1, row in enumerate(graph.adj_list):
