@@ -3,6 +3,7 @@ from test import graph1
 import torch
 import torch.nn as nn
 from utility import *
+from graph_utility import *
 from matplotlib import pyplot as plt
 from test import *
 import numpy as np
@@ -14,6 +15,7 @@ from graph_dataset import GraphDataset, GraphDatasetEager
 from globals import data
 import networkx as nx
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
+from networkx.algorithms.clique import find_cliques, graph_clique_number
 import os
 import sys
 
@@ -206,7 +208,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
             overlap_matrix[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
 
         global_overlap_matrix = torch.zeros_like(overlap_matrix)
-        n_terms = 10
+        n_terms = 1
         beta = 0.9
         for i in range(1, n_terms + 1):
             global_overlap_matrix += (beta ** (i-1)) * torch.matrix_power(overlap_matrix, i)
@@ -242,7 +244,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         # compactness_loss = torch.sum(distances * inverted_adj_matrix.float() / torch.sum(inverted_adj_matrix, dim=1, keepdim=True))
         compactness_loss = torch.sum(distances * similarity_matrix.float() / (torch.sum(similarity_matrix, dim=1, keepdim=True) + 1e-10))
 
-        lambda_1 = 0.05
+        lambda_1 = 0.05 # 0.01
         loss = (1 - lambda_1) * neighborhood_loss + lambda_1 * compactness_loss
         neighborhood_losses_p1.append((1 - lambda_1) * neighborhood_loss)
         compactness_losses_p1.append(lambda_1 * compactness_loss)
@@ -255,19 +257,35 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
             # plt.figure()
             # plot_points(embeddings, title='epoch {}'.format(i), annotate=True)
 
-    if verbose:
-        print('end of phase 1:')
-        plt.figure()
-        plot_points(embeddings, annotate=True)
-        plt.title('end of phase 1')
-
     # phase 2
     kmeans = KMeans(n_clusters)
     kmeans.fit(embeddings.detach().cpu().numpy())
     cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
 
     if verbose:
+        print('end of phase 1:')
+        plt.figure()
+        plot_points(embeddings, annotate=True)
         plot_points(cluster_centers, c='orange')
+        plt.title('end of phase 1')
+
+    # if verbose:
+    #     clique_number = graph_clique_number(graph.get_nx_graph())
+    #     for clique in find_cliques(graph.get_nx_graph()):
+    #         if len(clique) == clique_number:
+    #             print('maximum clique:')
+    #             print(clique)
+    #             print('\n')
+    #             c = ['b'] * graph.n_vertices
+    #             s = [10] * graph.n_vertices
+    #             for i in clique:
+    #                 c[i] = 'r'
+    #                 s[i] = 40
+    #             plt.figure()
+    #             plot_points(embeddings, annotate=True, c=c, s=s)
+    #             plot_points(cluster_centers, annotate=True, c='orange')
+    #             plt.title('clique')
+
 
     for i in range(100):
         optimizer.zero_grad()
@@ -329,7 +347,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     if verbose:
         print('corrected_colors:')
         print(colors)
-        print(is_proper_coloring(colors, graph.adj_list))
+        print(is_proper_coloring(colors, graph))
         print('n_used_colors:', len(set(colors)))
 
         plt.show()
@@ -337,15 +355,31 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     results.n_used_colors = len(set(colors))
     return embeddings, results
 
-# mode = "single_run"
-mode = "dataset_run"
+mode = "single_run"
+# mode = "dataset_run"
 
 if mode == "single_run":
-
+    
     embedding_dim = 10
-    n_clusters = 7
+    n_clusters = 114
 
-    graph = generate_queens_graph(7,7)
+    # graph = generate_queens_graph(6,6)
+    graph = Graph.load('../data/singular/k_1000')
+    clique_num = graph_clique_number(graph.get_nx_graph())
+    print('clique: ', clique_num)
+    print('greedy coloring num: ', greedy_coloring_number(graph, 'DSATUR'))
+    import sys; sys.exit(0)
+
+    # cliques = find_cliques(graph.get_nx_graph())
+
+    # for clique in cliques:
+    #     if len(clique) == 6:
+    #         print('maximum clique:')
+    #         print(clique)
+    #         print('\n')
+
+    # sys.exit(0)
+
     # graph = generate_queens_graph(20, 20)
 
     # # knesser graph:
@@ -369,6 +403,7 @@ if mode == "single_run":
     # seed = 232231
     # seed = 874581 # n_color = 16 for q13_13 with jaccard multiplier of 5
     # seed = 619964
+    # seed = 901365 # gives correct answer for q6_6
 
     torch.random.manual_seed(seed)
     np.random.seed(seed)
@@ -424,7 +459,19 @@ elif mode == "dataset_run":
         (generate_queens_graph(7,7), 7),
         (generate_queens_graph(8,8), 9),
         (generate_queens_graph(8,12), 12),
-        (generate_queens_graph(13, 13), 13)
+        (generate_queens_graph(13, 13), 13),
+        (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
+        (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
+        (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
+        # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
+        (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
+        (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
+        (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
+        # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
+        (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
+        (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
+        (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
+        # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
     ]
 
     n_runs_per_graph = 10
@@ -455,7 +502,8 @@ elif mode == "dataset_run":
 
         print('summary:', file=out)
         for item in summary:
-            print(', '.join(str(i) for i in item), file=out)
+            print('{:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], 100 * item[2]), file=out)
+            # print(', '.join(str(i) for i in item), file=out)
         
         
 
