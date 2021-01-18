@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from torch import nn
 import math
+import globals
 
 class MultiHeadAttentionOriginal(nn.Module):
     def __init__(
@@ -109,7 +110,8 @@ class MultiHeadAttention(nn.Module):
             embed_dim=None,
             val_dim=None,
             key_dim=None,
-            pointer_mode=False
+            pointer_mode=False,
+            name=None
     ):
         super(MultiHeadAttention, self).__init__()
 
@@ -140,6 +142,14 @@ class MultiHeadAttention(nn.Module):
             self.W_out = nn.Parameter(torch.Tensor(n_heads, val_dim, embed_dim))
 
         self.init_parameters()
+
+        if name is not None:
+            self.name = "{}-{}".format(self.__class__.__name__, name)
+        else:
+            self.name = self.__class__.__name__
+
+    def _get_name(self):
+        return self.name
 
     def init_parameters(self):
         for param in self.parameters():
@@ -177,6 +187,8 @@ class MultiHeadAttention(nn.Module):
         K = torch.matmul(hflat, self.W_key).view(shp)
         V = torch.matmul(hflat, self.W_val).view(shp)
 
+        self.Q, self.K, self.V = Q, K, V # for logging purposes
+
         # Calculate compatibility (n_heads, batch_size, n_query, graph_size)
         compatibility = self.norm_factor * torch.matmul(Q, K.transpose(2, 3))
 
@@ -202,6 +214,10 @@ class MultiHeadAttention(nn.Module):
         heads = heads.transpose(0, 1) # swap the dimensions for batch and heads to align it for the matmul
         projected_heads = torch.matmul(heads, self.W_out)
         out = torch.sum(projected_heads, dim=1) # sum across heads
+        self.out = out # for logging purposes
+
+        if globals.debug_mode:
+            self.out.retain_grad()
 
         return out
 
@@ -212,8 +228,8 @@ class MHAWithoutBatch(MultiHeadAttention):
         return super().forward(q, h, mask=mask).squeeze(0)
 
 class MHAAdapter(MHAWithoutBatch):
-    def __init__(self, n_heads, input_dim, output_dim):
-        super().__init__(n_heads, input_dim, input_dim, output_dim, pointer_mode=False)
+    def __init__(self, n_heads, input_dim, output_dim, name=None):
+        super().__init__(n_heads, input_dim, input_dim, output_dim, pointer_mode=False, name=name)
 
     def forward(self, h, mask=None):
         mask = (1 - mask).bool()
