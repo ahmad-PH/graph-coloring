@@ -1,5 +1,9 @@
 import networkx as nx
+from scipy.io import mmread, mminfo
+from typing import List
+
 from utility import adj_list_to_matrix
+
 
 def networkx_graph_to_adj_list(graph):
     adj_list = []
@@ -14,7 +18,7 @@ class Graph:
         self.nx_graph = None
         self.n_vertices = len(adj_list)
         self.n_edges = sum(len(row) for row in adj_list) / 2
-        self.adj_matrix = adj_list_to_matrix(self.adj_list)
+        self.adj_matrix = None
     
     @staticmethod
     def from_networkx_graph(graph):
@@ -39,7 +43,29 @@ class Graph:
                 adj_list.append(row)
                 line = f.readline()
         return Graph(adj_list)
-        
+
+    @staticmethod
+    def from_mtx_file(path):
+        coo_matrix = mmread(path)
+        coo_matrix.eliminate_zeros()
+        coo_matrix.sum_duplicates()
+
+        rows, cols, entries, _format, field, symmetry = mminfo(path)
+        assert rows == cols, "rows != cols"
+        assert _format == "coordinate", "format = array not yet tested"
+
+        adj_list : List[List[int]] = [[] for _ in range(rows)]
+        for row, column in zip(coo_matrix.row, coo_matrix.col):
+            if row != column:
+                adj_list[row].append(column)
+
+        return Graph(adj_list)
+
+    def get_adj_matrix(self):
+        if self.adj_matrix == None:
+            self.adj_matrix = adj_list_to_matrix(self.adj_list)
+        return self.adj_matrix
+
     def get_nx_graph(self):
         if self.nx_graph is None:
             self.nx_graph = self._calculate_nx_graph()
