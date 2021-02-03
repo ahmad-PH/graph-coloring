@@ -13,6 +13,7 @@ import torch.nn.functional as F
 from utility import EWMAWithCorrection
 from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
     is_proper_coloring, coloring_properties
+from snap_utility import edgelist_eliminate_self_loops
 
 graph1 = Graph([
     [1, 3],
@@ -431,3 +432,9 @@ class TestGraphSaveAndLoad(unittest.TestCase):
         loaded_graph = Graph.load(self.testIO)
         self.assertEqual(loaded_graph.n_vertices, graph.n_vertices)
         self.assertEqual(loaded_graph.adj_list, graph.adj_list)
+
+class TestEdgeListEliminateSelfLoops(unittest.TestCase):
+    def test_consecutive_self_loops(self):
+        edge_list = [(0, 1), (1, 1), (3, 3), (2, 0), (2,2)]
+        edgelist_eliminate_self_loops(edge_list)
+        self.assertEqual(edge_list, [(0, 1), (2, 0)])
