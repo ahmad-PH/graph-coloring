@@ -1,6 +1,7 @@
 import networkx as nx
 from scipy.io import mmread, mminfo
-from typing import List
+from typing import List, Union
+from io import TextIOBase, StringIO, IOBase
 
 from utility import adj_list_to_matrix
 
@@ -26,22 +27,35 @@ class Graph:
         G.nx_graph = graph
         return G
 
-    def save(self, path):
-        with open(path, 'w') as f:
-            for row in self.adj_list:
-                for neighbor in row:
-                    f.write(str(neighbor) + ' ')
-                f.write('\n')
-        
+    def save(self, target: Union[str, TextIOBase]):
+        if isinstance(target, str):
+            with open(target, 'w') as f:
+                self._save(f)
+        elif isinstance(target, TextIOBase):
+            self._save(target)
+
+    def _save(self, iobase):
+        for row in self.adj_list:
+            for neighbor in row:
+                iobase.write(str(neighbor) + ' ')
+            iobase.write('\n')
+
     @staticmethod
-    def load(path):
+    def load(source: Union[str, TextIOBase]):
+        if isinstance(source, str):
+            with open(source, 'r') as f:
+                return Graph._load(f)
+        elif isinstance(source, TextIOBase):
+            return Graph._load(source)
+
+    @staticmethod
+    def _load(source):
         adj_list = []
-        with open(path, 'r') as f:
-            line = f.readline()
-            while line != "": # EOF not reached
-                row = [int(x) for x in line.split()]
-                adj_list.append(row)
-                line = f.readline()
+        line = source.readline()
+        while line != "": # EOF not reached
+            row = [int(x) for x in line.split()]
+            adj_list.append(row)
+            line = source.readline()
         return Graph(adj_list)
 
     @staticmethod

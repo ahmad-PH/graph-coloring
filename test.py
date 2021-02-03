@@ -1,5 +1,6 @@
 import unittest
 import math
+from io import StringIO
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
@@ -410,3 +411,23 @@ class TestColoringCheckers(unittest.TestCase):
         self.assertFalse(is_proper)
         self.assertEqual(n_violations, 2)
         self.assertAlmostEqual(violation_ratio, 2./7.)
+
+
+class TestGraphSaveAndLoad(unittest.TestCase):
+    def setUp(self):
+        self.testIO = StringIO()
+
+    def test_happy_scenario(self):
+        petersen_graph.save(self.testIO)
+        self.testIO.seek(0)
+        loaded_graph = Graph.load(self.testIO)
+        self.assertEqual(loaded_graph.n_vertices, petersen_graph.n_vertices)
+        self.assertEqual(loaded_graph.adj_list, petersen_graph.adj_list)
+
+    def test_with_isolated_vertices(self):
+        graph = Graph([[2], [], [0]])
+        graph.save(self.testIO)
+        self.testIO.seek(0)
+        loaded_graph = Graph.load(self.testIO)
+        self.assertEqual(loaded_graph.n_vertices, graph.n_vertices)
+        self.assertEqual(loaded_graph.adj_list, graph.adj_list)
