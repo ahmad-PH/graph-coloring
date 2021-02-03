@@ -17,7 +17,7 @@ class Graph:
         self.adj_list = adj_list
         self.nx_graph = None
         self.n_vertices = len(adj_list)
-        self.n_edges = sum(len(row) for row in adj_list) / 2
+        self.n_edges = int(sum(len(row) for row in adj_list) / 2)
         self.adj_matrix = None
     
     @staticmethod
