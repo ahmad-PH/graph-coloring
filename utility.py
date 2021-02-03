@@ -9,7 +9,7 @@ def n_combinations(n, k):
 
 def adj_list_to_matrix(adj_list):
     n = len(adj_list)
-    adj_matrix = np.zeros((n,n))
+    adj_matrix = np.zeros((n,n), dtype=np.bool)
     for i in range(n):
         adj_matrix[i, adj_list[i]] = 1
     return adj_matrix
