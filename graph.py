@@ -76,7 +76,7 @@ class Graph:
         return Graph(adj_list)
 
     def get_adj_matrix(self):
-        if self.adj_matrix == None:
+        if self.adj_matrix is None:
             self.adj_matrix = adj_list_to_matrix(self.adj_list)
         return self.adj_matrix
 
