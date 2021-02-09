@@ -13,6 +13,7 @@ from sklearn.cluster import KMeans
 from graph_utility import is_proper_coloring
 from graph_dataset import GraphDataset, GraphDatasetEager
 from globals import data
+from snap_utility import load_snap_graph
 import networkx as nx
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
 from networkx.algorithms.clique import find_cliques, graph_clique_number
@@ -31,26 +32,28 @@ def correct_coloring(coloring, graph):
     colors_used = set(coloring)
     n_colors_used = len(colors_used)
 
+    # TESTCOUNTER = 0
     while(True):
+        # print('finding violators, counter: {}'.format(TESTCOUNTER))
+        # TESTCOUNTER += 1
         n_violations = [0] * graph.n_vertices
         found_violations = False
         for v1, row in enumerate(graph.adj_list):
             for v2 in row:
                 if coloring[v1] == coloring[v2]:
-                    # print('violation: ({}, {})'.format(v1, v2))
                     n_violations[v1] += 1
                     found_violations = True
 
         if not found_violations:
             break
-        
+
         fixed_a_vertex = False
         for v in range(graph.n_vertices):
             if n_violations[v] > 0:
                 forbidden_colors = set(coloring[graph.adj_list[v]])
                 if len(forbidden_colors) < n_colors_used:
                     possible_colors = colors_used - forbidden_colors
-                    prev_color = coloring[v] # TEST
+                    # prev_color = coloring[v] # TEST
                     coloring[v] = next(iter(possible_colors)) # maybe choose something other than 0 ? (the one with least loss maybe)
                     fixed_a_vertex = True
                     # print('vertex fixed without new color: {}, from {} to {}, with possible colors: {}'.format(
@@ -158,7 +161,9 @@ def compute_neighborhood_losses(embeddings, adj_matrix, precomputed_distances = 
     else:
         distances = precomputed_distances
     inverse_distances = 1. / (distances + 1e-10)
-    return torch.sum(inverse_distances * adj_matrix.float() / torch.sum(adj_matrix, dim=1, keepdim=True), dim=1)
+    epsilon = 1e-10
+    n_neighbors = torch.sum(adj_matrix, dim=1, keepdim=True)
+    return torch.sum(inverse_distances * adj_matrix.float() / (n_neighbors + epsilon), dim=1)
 
 def reinitialize_embeddings(embeddings, loss_function, ratio = 0.1, n_candidates = 10):
     with torch.no_grad():
@@ -194,11 +199,20 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     embeddings = initialize_embeddings(graph.n_vertices, embedding_dim, mode="normal", device=device)
 
     with torch.no_grad():
-        adj_matrix = torch.tensor(adj_list_to_matrix(graph.adj_list)).to(device) 
+        adj_matrix = torch.tensor(graph.get_adj_matrix(), dtype=torch.float32).to(device) 
+        # adj_matrix = torch.tensor(graph.get_adj_matrix()).to(device) # bool by default 
+
+        # print('type:', adj_matrix.dtype)
+
         inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix - torch.eye(graph.n_vertices).to(device)
+        # inverted_adj_matrix = adj_matrix.logical_not().logical_and(torch.eye(graph.n_vertices, dtype=torch.bool).logical_not())
+
+        # print('mem3:', torch.cuda.memory_allocated())
+        # print('type:', inverted_adj_matrix.dtype)
 
         overlap_matrix = torch.zeros(graph.n_vertices, graph.n_vertices).to(device)
         for i in range(graph.n_vertices):
+            print('overlap:', i)
             for j in range(graph.n_vertices):
                 if i == j: continue
                 n_i = set(graph.adj_list[i])
@@ -214,7 +228,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
             global_overlap_matrix += (beta ** (i-1)) * torch.matrix_power(overlap_matrix, i)
         
         for i in range(graph.n_vertices):
-            global_overlap_matrix[i][i] = 0 
+            global_overlap_matrix[i][i] = 0
             global_overlap_matrix[i][graph.adj_list[i]] = 0 # suppress entries of neighbors
 
         lambda_3 = 5.
@@ -224,6 +238,8 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
     # phase 1
     for i in range(200):
+        if i % 20 == 0:
+            print('epoch:', i)
         optimizer.zero_grad()
         
         distances = compute_pairwise_distances(embeddings, embeddings)
@@ -342,6 +358,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     #         plot_points(embeddings, annotate=True, c=c)
     #         plot_points(cluster_centers, c='orange', annotate=True)
 
+    print('started correction:')
     correct_coloring(colors, graph)
 
     if verbose:
@@ -355,20 +372,38 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     results.n_used_colors = len(set(colors))
     return embeddings, results
 
-mode = "single_run"
-# mode = "dataset_run"
+
+# mode = "single_run"
+mode = "dataset_run"
+
+# G = snap.LoadEdgeList(snap.TNGraph, "../data/singular/new/p2p-Gnutella04.txt")
+# G = snap.LoadEdgeList(snap.TNGraph, "../data/singular/new/ca-HepTh.txt")
+# GC = convert(G)
+
+# g = load_snap_graph("../data/singular/new/p2p-Gnutella04.txt")
+# g = load_snap_graph("../data/singular/new/ca-HepTh.txt")
+# g = load_snap_graph("../data/singular/new/email-Eu-core.txt")
+# g = load_snap_graph('../data/singular/new/CollegeMsg.txt')
+
+# g.save('../data/singular/new/CollegeMsg.graph')
+
+# import sys; sys.exit(0)
 
 if mode == "single_run":
-    
-    embedding_dim = 10
-    n_clusters = 114
 
+    embedding_dim = 10
+    n_clusters = 18
+
+    graph = Graph.load('../data/singular/new/ca-HepTh.graph')
+    # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
+    # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
     # graph = generate_queens_graph(6,6)
-    graph = Graph.load('../data/singular/k_1000')
-    clique_num = graph_clique_number(graph.get_nx_graph())
-    print('clique: ', clique_num)
-    print('greedy coloring num: ', greedy_coloring_number(graph, 'DSATUR'))
-    import sys; sys.exit(0)
+    # graph = Graph.load('../data/singular/k_1000')
+
+    # clique_num = graph_clique_number(graph.get_nx_graph())
+    # print('clique: ', clique_num)
+    # print('greedy coloring num: ', greedy_coloring_number(graph, 'DSATUR'))
+    # import sys; sys.exit(0)
 
     # cliques = find_cliques(graph.get_nx_graph())
 
@@ -447,34 +482,40 @@ elif mode == "dataset_run":
 
     embedding_dim = 10
 
+    # dataset = [
+    #     (graph1, 3),
+    #     (graph2, 2),
+    #     (graph3, 3),
+    #     (bipartite_10_vertices, 2),
+    #     (slf_hard, 3),
+    #     (petersen_graph, 3),
+    #     (generate_queens_graph(5,5), 5),
+    #     (generate_queens_graph(6,6), 7),
+    #     (generate_queens_graph(7,7), 7),
+    #     (generate_queens_graph(8,8), 9),
+    #     (generate_queens_graph(8,12), 12),
+    #     (generate_queens_graph(13, 13), 13),
+    #     (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
+    #     (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
+    #     (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
+    #     # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
+    #     (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
+    #     (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
+    #     (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
+    #     # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
+    #     (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
+    #     (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
+    #     (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
+    #     # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
+    # ]
+
     dataset = [
-        (graph1, 3),
-        (graph2, 2),
-        (graph3, 3),
-        (bipartite_10_vertices, 2),
-        (slf_hard, 3),
-        (petersen_graph, 3),
-        (generate_queens_graph(5,5), 5),
-        (generate_queens_graph(6,6), 7),
-        (generate_queens_graph(7,7), 7),
-        (generate_queens_graph(8,8), 9),
-        (generate_queens_graph(8,12), 12),
-        (generate_queens_graph(13, 13), 13),
-        (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
-        (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
-        (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
-        # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
-        (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
-        (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
-        (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
-        # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
-        (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
-        (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
-        (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
-        # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
+        # (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
+        # (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
+        (Graph.load('../data/singular/new/ca-HepTh.graph').set_name('ca-HepTh'), 32), # DSATUR
     ]
 
-    n_runs_per_graph = 10
+    n_runs_per_graph = 1
 
     with open('results.txt', 'w') as out:
         summary = []
@@ -506,6 +547,3 @@ elif mode == "dataset_run":
             # print(', '.join(str(i) for i in item), file=out)
         
         
-
-
-
