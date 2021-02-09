@@ -14,6 +14,22 @@ from graph import Graph
 #         adj_list[v1].append(v2)
 #         adj_list[v2].append(v1)
 
+def read_edge_list_temporal(filepath):
+    edge_list = []
+    with open(filepath) as f:
+        for line in f.readlines():
+
+            if line.startswith('#'):
+                continue
+
+            tokens = line.split()
+            if len(tokens) != 3:
+                raise Exception("snap graph line doesn't contain three tokens: " + str(tokens))
+            v1, v2 = int(tokens[0]), int(tokens[1])
+            edge_list.append((v1, v2))
+
+    return edge_list
+
 def read_edge_list(filepath):
     edge_list = []
     with open(filepath) as f:
@@ -24,7 +40,7 @@ def read_edge_list(filepath):
 
             tokens = line.split()
             if len(tokens) != 2:
-                raise Exception("snap graph line contains more than two tokens: " + str(tokens))
+                raise Exception("snap graph line doesn't contain two tokens: " + str(tokens))
             v1, v2 = int(tokens[0]), int(tokens[1])
             edge_list.append((v1, v2))
 
@@ -77,6 +93,7 @@ def edgelist_eliminate_self_loops(edge_list):
 
 def load_snap_graph(filepath):
     edges = read_edge_list(filepath)
+    # edges = read_edge_list_temporal(filepath)
 
     max_node_index = edgelist_find_max_node_index(edges)
     untouched_nodes, touched_map = edgelist_find_untouched_nodes(edges, max_node_index)
