@@ -10,10 +10,11 @@ from graph import Graph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMAWithCorrection
+from utility import EWMAWithCorrection, LinearScheduler
 from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
+from exact_coloring import find_k_coloring
 
 graph1 = Graph([
     [1, 3],
@@ -345,6 +346,14 @@ class TestQueensGraphGenerator(unittest.TestCase):
         self.assertListEqual(graph.adj_list[1], [0,2,3,4,5])
         self.assertListEqual(graph.adj_list[5], [1,2,3,4])
 
+    def test_on_queens6_6(self):
+        graph = generate_queens_graph(6, 6)
+        self.assertEqual(graph.n_edges, 290)
+
+    def test_on_queens8_8(self):
+        graph = generate_queens_graph(8, 8)
+        self.assertEqual(graph.n_edges, 728)
+
 
 class TestSLFHeuristic(unittest.TestCase):
     def test_graph3(self):
@@ -438,3 +447,36 @@ class TestEdgeListEliminateSelfLoops(unittest.TestCase):
         edge_list = [(0, 1), (1, 1), (3, 3), (2, 0), (2,2)]
         edgelist_eliminate_self_loops(edge_list)
         self.assertEqual(edge_list, [(0, 1), (2, 0)])
+
+
+class TestFindKColoring(unittest.TestCase):
+    def test_happy_scenario_graph1(self):
+        coloring = find_k_coloring(graph1, 3)
+        self.assertTrue(is_proper_coloring(coloring, graph1))
+        n_used = len(set(coloring))
+        self.assertEqual(n_used, 3)
+
+    def test_boundary_k(self):
+        coloring = find_k_coloring(graph1, 2)
+        self.assertEqual(coloring, None)
+    
+    def test_excess_k_graph1(self):
+        coloring = find_k_coloring(graph1, 4)
+        self.assertTrue(is_proper_coloring(coloring, graph1))
+        n_used = len(set(coloring))
+        self.assertLessEqual(n_used, 4)
+
+    def test_happy_scenario_petersen(self):
+        coloring = find_k_coloring(petersen_graph, 3)
+        self.assertTrue(is_proper_coloring(coloring, petersen_graph))
+        n_used = len(set(coloring))
+        self.assertEqual(n_used, 3)
+
+
+class TestLinearScheduler(unittest.TestCase):
+    def test_happy_scenario(self):
+        scheduler = LinearScheduler(10, 12, 2)
+        value1 = scheduler.get_next_value()
+        value2 = scheduler.get_next_value()
+        self.assertEqual(value1, 11)
+        self.assertEqual(value2, 12)

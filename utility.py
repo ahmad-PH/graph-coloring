@@ -23,6 +23,20 @@ def adj_matrix_to_list(adj_matrix):
                 adj_list[-1].append(j)
     return adj_list
 
+class LinearScheduler:
+    def __init__(self, start_point, end_point, n_iterations):
+        self.value = start_point
+        self.increment = (end_point - start_point) / n_iterations
+        self.n_iterations = n_iterations
+        self.n_times_called = 0
+    
+    def get_next_value(self):
+        self.value += self.increment
+        self.n_times_called += 1
+        if self.n_times_called > self.n_iterations:
+            raise RuntimeError("LinearScheduler called more times than it should.")
+        return self.value
+
 class EWMAWithCorrection:
     def __init__(self, beta=0.95):
         self._avg = 0.
