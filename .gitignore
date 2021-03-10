@@ -3,3 +3,5 @@ __pycache__/*
 .pylintrc
 .ipynb_checkpoints/*
 *.pt
+*.jpg
+*.png
