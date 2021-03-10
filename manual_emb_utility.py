@@ -9,9 +9,15 @@ import numpy as np
 from matplotlib import pyplot as plt
 import sys
 
-def correct_coloring(coloring, graph):
+
+
+def correct_coloring(coloring, graph: Graph):
+    coloring = np.array(coloring)
+    for color in coloring:
+        if color >= graph.n_vertices:
+            raise ValueError("coloring uses colors of larger index than the number of vertices.")
     colors_used = set(coloring)
-    n_colors_used = len(colors_used)
+    colors_unused = set(range(graph.n_vertices)) - colors_used
 
     # TESTCOUNTER = 0
     while(True):
@@ -32,10 +38,11 @@ def correct_coloring(coloring, graph):
         for v in range(graph.n_vertices):
             if n_violations[v] > 0:
                 forbidden_colors = set(coloring[graph.adj_list[v]])
-                if len(forbidden_colors) < n_colors_used:
-                    possible_colors = colors_used - forbidden_colors
+                available_colors = colors_used - forbidden_colors
+                if len(available_colors) > 0:
+                    # print('p: {}, n_used: {}, used:{}, forbidden: {}'.format(possible_colors, n_colors_used, colors_used, forbidden_colors))
                     # prev_color = coloring[v] # TEST
-                    coloring[v] = next(iter(possible_colors)) # maybe choose something other than 0 ? (the one with least loss maybe)
+                    coloring[v] = next(iter(available_colors)) # maybe choose something other than 0 ? (the one with least loss maybe)
                     fixed_a_vertex = True
                     # print('vertex fixed without new color: {}, from {} to {}, with possible colors: {}'.format(
                         # v, prev_color, coloring[v], possible_colors
@@ -46,11 +53,60 @@ def correct_coloring(coloring, graph):
             continue
         
         max_violator = np.argmax(n_violations)
-        new_color = n_colors_used
-        # print('choosing new color: {} for the max violator: {}'.format(new_color, max_violator))
+        new_color = next(iter(colors_unused))
+        print('choosing new color: {} for the max violator: {}'.format(new_color, max_violator))
         coloring[max_violator] = new_color
         colors_used.add(new_color)
-        n_colors_used += 1
+        colors_unused.remove(new_color)
+        # print('added oclor:', new_color)
+
+    return coloring
+
+# def correct_coloring(coloring, graph):
+#     coloring = np.array(coloring)
+#     colors_used = set(coloring)
+#     n_colors_used = len(colors_used)
+
+#     # TESTCOUNTER = 0
+#     while(True):
+#         # print('finding violators, counter: {}'.format(TESTCOUNTER))
+#         # TESTCOUNTER += 1
+#         n_violations = [0] * graph.n_vertices
+#         found_violations = False
+#         for v1, row in enumerate(graph.adj_list):
+#             for v2 in row:
+#                 if coloring[v1] == coloring[v2]:
+#                     n_violations[v1] += 1
+#                     found_violations = True
+
+#         if not found_violations:
+#             break
+
+#         fixed_a_vertex = False
+#         for v in range(graph.n_vertices):
+#             if n_violations[v] > 0:
+#                 forbidden_colors = set(coloring[graph.adj_list[v]])
+#                 if len(forbidden_colors) < n_colors_used:
+#                     possible_colors = colors_used - forbidden_colors
+#                     print('p: {}, n_used: {}, used:{}, forbidden: {}'.format(possible_colors, n_colors_used, colors_used, forbidden_colors))
+#                     # prev_color = coloring[v] # TEST
+#                     coloring[v] = next(iter(possible_colors)) # maybe choose something other than 0 ? (the one with least loss maybe)
+#                     fixed_a_vertex = True
+#                     # print('vertex fixed without new color: {}, from {} to {}, with possible colors: {}'.format(
+#                         # v, prev_color, coloring[v], possible_colors
+#                     # ))
+#                     break
+        
+#         if fixed_a_vertex:
+#             continue
+        
+#         max_violator = np.argmax(n_violations)
+#         new_color = n_colors_used
+#         # print('choosing new color: {} for the max violator: {}'.format(new_color, max_violator))
+#         coloring[max_violator] = new_color
+#         colors_used.add(new_color)
+#         n_colors_used += 1
+#         print('added oclor:', new_color)
 
 def compute_pairwise_distances(vectors1, vectors2):
     n1 = vectors1.shape[0]
