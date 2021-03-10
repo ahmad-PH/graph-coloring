@@ -15,6 +15,7 @@ from graph_utility import generate_kneser_graph, generate_queens_graph, sort_gra
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
 from exact_coloring import find_k_coloring
+from manual_emb_utility import correct_coloring
 
 graph1 = Graph([
     [1, 3],
@@ -480,3 +481,11 @@ class TestLinearScheduler(unittest.TestCase):
         value2 = scheduler.get_next_value()
         self.assertEqual(value1, 11)
         self.assertEqual(value2, 12)
+
+class TestCorrectColoring(unittest.TestCase):
+    def test_coloring_with_holes(self):
+        coloring = [1, 1, 1, 1, 1] # hole: 0 is not used
+        corrected_coloring = correct_coloring(coloring, graph2)
+        self.assertTrue(is_proper_coloring(corrected_coloring, graph2))
+        
+
