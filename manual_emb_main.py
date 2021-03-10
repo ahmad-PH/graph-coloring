@@ -44,32 +44,18 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         # print('mem3:', torch.cuda.memory_allocated())
         # print('type:', inverted_adj_matrix.dtype)
 
-
         overlap_matrix = torch.zeros(graph.n_vertices, graph.n_vertices).to(device)
         for i in range(graph.n_vertices):
-            for j in range(graph.n_vertices):
-                if i == j: continue
+            for j in range(i + 1, graph.n_vertices):
                 n_i = set(graph.adj_list[i])
                 n_j = set(graph.adj_list[j])
                 overlap_matrix[i][j] = len(n_i.intersection(n_j)) / (len(n_i.union(n_j)) + 1e-8)
 
+            for j in range(0, i):
+                overlap_matrix[i][j] = overlap_matrix[j][i]
+
+            overlap_matrix[i][i] = 0 # nodes are not similar with themselves
             overlap_matrix[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
-
-        # common_neighbor_count_matrix = torch.matmul(adj_matrix, adj_matrix).to(device)
-        # overlap_matrix_2 = torch.zeros_like(common_neighbor_count_matrix).to(device)
-
-        # for i in range(graph.n_vertices):
-        #     for j in range(graph.n_vertices):
-        #         if i == j: 
-        #             overlap_matrix_2[i][j] = 0.
-        #         elif j < i:
-        #             overlap_matrix_2[i][j] = overlap_matrix_2[j][i]
-        #         else:
-        #             intersection = common_neighbor_count_matrix[i][j]
-        #             union = (common_neighbor_count_matrix[i][i] + common_neighbor_count_matrix[j][j] - common_neighbor_count_matrix[i][j])
-        #             overlap_matrix_2[i][j] = intersection / union 
-
-        #     overlap_matrix_2[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
 
         global_overlap_matrix = torch.zeros_like(overlap_matrix)
         n_terms = 1
