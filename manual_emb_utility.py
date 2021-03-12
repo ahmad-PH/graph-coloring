@@ -54,7 +54,7 @@ def correct_coloring(coloring, graph: Graph):
         
         max_violator = np.argmax(n_violations)
         new_color = next(iter(colors_unused))
-        print('choosing new color: {} for the max violator: {}'.format(new_color, max_violator))
+        # print('choosing new color: {} for the max violator: {}'.format(new_color, max_violator))
         coloring[max_violator] = new_color
         colors_used.add(new_color)
         colors_unused.remove(new_color)
@@ -173,8 +173,11 @@ def compute_neighborhood_losses(embeddings, adj_matrix, precomputed_distances = 
         distances = compute_pairwise_distances(embeddings, embeddings)
     else:
         distances = precomputed_distances
-    inverse_distances = 1. / (distances + 1e-10)
     epsilon = 1e-10
+    # inverse_distances_old = 1. / (distances + epsilon)
+    inverse_distances = torch.pow(distances + epsilon, -1)
+    # print('inverse:')
+    # print(inverse_distances)
     n_neighbors = torch.sum(adj_matrix, dim=1, keepdim=True)
     return torch.sum(inverse_distances * adj_matrix.float() / (n_neighbors + epsilon), dim=1)
 

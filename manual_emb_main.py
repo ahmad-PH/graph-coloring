@@ -21,6 +21,8 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
     data.neighborhood_losses_p1 : List[float] = []
     data.compactness_losses_p1 : List[float] = []
+    data.scaled_neighborhood_losses_p1 : List[float] = []
+    data.scaled_compactness_losses_p1 : List[float] = []
     data.losses_p1 : List[float] = []
 
     data.neighborhood_losses_p2 : List[float] = []
@@ -73,26 +75,38 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     optimizer = torch.optim.Adam([embeddings], lr=0.1)
 
     n_phase1_iterations = 200
-    lambda_1_scheduler = LinearScheduler(0.99, 0.5, n_phase1_iterations) # used to be 0.01 -> 0.02 
-    
+    lambda_1_scheduler = LinearScheduler(0.99, 0.5, n_phase1_iterations) 
+    data.n_color_performance = []
+
     # phase 1
     for i in range(n_phase1_iterations):
-        if i % 10 == 0 and verbose:
-            plt.title('{}'.format(i))
-            colors = ['b'] * graph.n_vertices
-            colors[5] = 'g'
-            colors[40] = 'r'
-            plot_points(embeddings, annotate=True, c=colors)
+
+        # ======= A bunch of plots and logs: =======
+
+        # if i % 10 == 0 and verbose:
+            # plt.title('{}'.format(i))
             # plot_points(embeddings, annotate=True, c=classes_to_colors(proper_coloring))
-            plt.savefig('images/{}'.format(i))
-            plt.clf()
+            # plt.savefig('images/{}'.format(i))
+            # plt.clf()
 
         # if i % 20 == 0 and i != 0: 
         #     reinitialize_embeddings(embeddings, loss_function =
         #         lambda emb: compute_neighborhood_losses(emb, adj_matrix), ratio=0.1)
 
+        if i % 10 == 0:
+            kmeans = KMeans(n_clusters)
+            kmeans.fit(embeddings.detach().cpu().numpy())
+            cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
+
+            colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
+            colors = colors.detach().cpu().numpy()
+            colors = correct_coloring(colors, graph)
+            n_used_colors = len(set(colors))
+            data.n_color_performance.append(n_used_colors)
+
+        # ======= The actual optimization: =======
+
         optimizer.zero_grad()
-        
         distances = compute_pairwise_distances(embeddings, embeddings)
 
         # with torch.no_grad():
@@ -111,10 +125,15 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         # compactness_loss = torch.sum(distances * inverted_adj_matrix.float() / torch.sum(inverted_adj_matrix, dim=1, keepdim=True))
         compactness_loss = torch.sum(distances * similarity_matrix.float() / (torch.sum(similarity_matrix, dim=1, keepdim=True) + 1e-10))
 
+        # print('distances:')
+        # print(distances)
+
         lambda_1 = lambda_1_scheduler.get_next_value()
         loss = lambda_1 * neighborhood_loss + (1 - lambda_1) * compactness_loss # lambda_1 used to be for compactness
-        data.neighborhood_losses_p1.append((1 - lambda_1) * neighborhood_loss)
-        data.compactness_losses_p1.append(lambda_1 * compactness_loss)
+        data.scaled_neighborhood_losses_p1.append(lambda_1 * neighborhood_loss)
+        data.scaled_compactness_losses_p1.append((1 - lambda_1) * compactness_loss)
+        data.neighborhood_losses_p1.append(neighborhood_loss)
+        data.compactness_losses_p1.append(compactness_loss)
         data.losses_p1.append(loss)
 
         loss.backward()
