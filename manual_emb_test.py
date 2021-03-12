@@ -37,13 +37,16 @@ mode = "single_run"
 if mode == "single_run":
 
     embedding_dim = 10
-    n_clusters = 7
 
     # graph = Graph.load('../data/singular/new/ca-HepTh.graph')
     # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
-    # graph = generate_queens_graph(7,7)
-    graph = Graph.load('../data/singular/ws_1000')
+    # graph, n_clusters = generate_queens_graph(5,5), 5
+    # graph, n_clusters = generate_queens_graph(7,7), 7
+    # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
+    graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
+
+    # graph = Graph.load('../data/singular/ws_1000')
     # graph = Graph.load('../data/singular/k_1000')
 
     # coloring = find_k_coloring(graph, 7)
@@ -95,7 +98,7 @@ if mode == "single_run":
     np.random.seed(seed)
     print('seed is: ', seed)
 
-    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=True)
+    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
 
     print('results:')
     print(results)
@@ -112,13 +115,27 @@ if mode == "single_run":
     # torch.save(embeddings, 'q6_6.pt')
 
     # plot the losses:
-    plt.plot(data.neighborhood_losses_p1, label='neighborhood')
-    plt.plot(data.compactness_losses_p1, label='compactness')
-    plt.plot(data.centroid_losses_p1, label='centroid')
+    plt.plot(data.scaled_neighborhood_losses_p1, label='scaled_neighborhood')
+    plt.plot(data.scaled_compactness_losses_p1, label='scaled_compactness')
+    # plt.plot(data.centroid_losses_p1, label='centroid')
     plt.plot(data.losses_p1, label='overall')
     plt.legend()
-    plt.show()
+    plt.title('losses')
+    plt.savefig('/home/ahmad/Desktop/losses.png')
     plt.figure()
+
+    plt.plot(data.neighborhood_losses_p1, label='neighborhood')
+    plt.plot(data.compactness_losses_p1, label='compactness')
+    plt.legend()
+    plt.title('raw losses')
+    plt.savefig('/home/ahmad/Desktop/raw_losses.png')
+    plt.figure()
+
+    plt.plot(data.n_color_performance)
+    plt.title('n_color_performance')
+    plt.savefig('/home/ahmad/Desktop/color_performance.png')
+    plt.show()
+
 
     # plt.plot(data.neighborhood_losses_p2, label='neighborhood_p2')
     # plt.plot(data.compactness_losses_p2, label='compactness_p2')
