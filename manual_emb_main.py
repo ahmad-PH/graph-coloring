@@ -151,9 +151,57 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
     # phase 2
     clustering_t1 = time.time()
-    kmeans = KMeans(n_clusters)
-    kmeans.fit(embeddings.detach().cpu().numpy())
-    cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
+    clustering_results = []
+    for i in range(11):
+        if i == 0:
+            kmeans = KMeans(n_clusters)
+        else:
+            kmeans = KMeans(n_clusters, init='random')
+        kmeans.fit(embeddings.detach().cpu().numpy())
+        cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
+
+        colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
+        colors = colors.detach().cpu().numpy()
+        properties = coloring_properties(colors, graph)
+        violation_ratio = properties[2]
+
+        if verbose:
+            print('colors:')
+            print(colors)
+            print('properties:')
+            print(properties)
+
+            # plt.figure()
+            # plot_points(embeddings, annotate=True)
+            # plot_points(cluster_centers, c='orange', annotate=True)
+            # plt.title('end of phase 2')
+
+        if verbose:
+            violators = set([])
+            for v1, row in enumerate(graph.adj_list):
+                for v2 in row:
+                    if colors[v1] == colors[v2]:
+                        violators.add(v1)
+                        print('violation: ({}, {})'.format(v1, v2))
+
+        correction_t1 = time.time()
+        colors = correct_coloring(colors, graph)
+        correction_t2 = time.time()
+
+        if verbose:
+            print('corrected_colors:')
+            print(colors)
+            if is_proper_coloring(colors, graph) == False:
+                raise Exception('corrected coloring is not correct!')
+            print('n_used_colors:', len(set(colors)))
+
+            plt.show()
+
+        n_used_colors = len(set(colors))
+        clustering_results.append([n_used_colors, violation_ratio, colors])
+
+    best_clustering_index = np.argmin([result[0] for result in clustering_results])
+    results.n_used_colors, results.violation_ratio, _ = clustering_results[best_clustering_index]
     clustering_t2 = time.time()
 
     if verbose:
@@ -162,94 +210,6 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         plot_points(embeddings, annotate=True)
         plot_points(cluster_centers, c='orange')
         plt.title('end of phase 1')
-
-    # if verbose:
-    #     clique_number = graph_clique_number(graph.get_nx_graph())
-    #     for clique in find_cliques(graph.get_nx_graph()):
-    #         if len(clique) == clique_number:
-    #             print('maximum clique:')
-    #             print(clique)
-    #             print('\n')
-    #             c = ['b'] * graph.n_vertices
-    #             s = [10] * graph.n_vertices
-    #             for i in clique:
-    #                 c[i] = 'r'
-    #                 s[i] = 40
-    #             plt.figure()
-    #             plot_points(embeddings, annotate=True, c=c, s=s)
-    #             plot_points(cluster_centers, annotate=True, c='orange')
-    #             plt.title('clique')
-
-
-    # for i in range(100):
-    #     optimizer.zero_grad()
-
-    #     # if i % 20 == 0 and i != 0: 
-    #     #     embeddings = reinitialize_embeddings(embeddings,
-    #     #         loss_function=lambda emb: compute_neighborhood_losses(emb, adj_matrix))
-
-    #     neighborhood_loss = compute_neighborhood_losses(embeddings, adj_matrix).sum()
-        
-    #     distances_from_centers = compute_pairwise_distances(embeddings, cluster_centers)
-    #     compactness_loss = torch.sum(torch.min(distances_from_centers, dim=1)[0] ** 2)
-
-    #     # _lambda = 0.1
-    #     lambda_2 = 0.1
-    #     loss = (1 - lambda_2) * neighborhood_loss + lambda_2 * compactness_loss
-    #     data.neighborhood_losses_p2.append((1 - lambda_2) * neighborhood_loss)
-    #     data.compactness_losses_p2.append(lambda_2 * compactness_loss)
-    #     data.losses_p2.append(loss)
-
-    #     loss.backward()
-    #     optimizer.step()
-
-    # if verbose:
-    #     print('end of phase 2:')
-
-    colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
-    colors = colors.detach().cpu().numpy()
-    properties = coloring_properties(colors, graph)
-    results.violation_ratio = properties[2]
-
-    if verbose:
-        print('colors:')
-        print(colors)
-        print('properties:')
-        print(properties)
-
-        # plt.figure()
-        # plot_points(embeddings, annotate=True)
-        # plot_points(cluster_centers, c='orange', annotate=True)
-        # plt.title('end of phase 2')
-
-    if verbose:
-        violators = set([])
-        for v1, row in enumerate(graph.adj_list):
-            for v2 in row:
-                if colors[v1] == colors[v2]:
-                    violators.add(v1)
-                    print('violation: ({}, {})'.format(v1, v2))
-
-        # for v in sorted(list(violators)):
-        #     plt.figure()
-        #     c = highlight_neighborhood(v, graph)
-        #     plot_points(embeddings, annotate=True, c=c)
-        #     plot_points(cluster_centers, c='orange', annotate=True)
-
-    correction_t1 = time.time()
-    colors = correct_coloring(colors, graph)
-    correction_t2 = time.time()
-
-    if verbose:
-        print('corrected_colors:')
-        print(colors)
-        if is_proper_coloring(colors, graph) == False:
-            raise Exception('corrected coloring is not correct!')
-        print('n_used_colors:', len(set(colors)))
-
-        plt.show()
-
-    results.n_used_colors = len(set(colors))
 
     sim_matrix_time = sim_matrix_t2 - sim_matrix_t1
     phase1_time = phase_1_t2 - phase_1_t1
