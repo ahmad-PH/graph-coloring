@@ -56,7 +56,7 @@ def test_on_dataset():
     losses : List[List[float]] = [[] for _ in range(len(ds))]
     n_used_list : List[List[int]] = [[] for _ in range(len(ds))]
     final_answers = []
-    n_epochs = 20
+    n_epochs = 100
 
     for epoch in range(n_epochs):
         print("\nepoch: {}".format(epoch))
@@ -124,9 +124,9 @@ def test_on_single_graph():
     # graph = Graph(bipartite_10_vertices)
 
     # graph = generate_queens_graph(5,5)
-    # graph = generate_queens_graph(6,6)
+    graph = generate_queens_graph(6,6)
     # graph = generate_queens_graph(7,7)
-    graph = generate_queens_graph(8,8)
+    # graph = generate_queens_graph(8,8)
     # graph = generate_queens_graph(8,12)
     # graph = generate_queens_graph(11,11)
     # graph = generate_queens_graph(13,13)
@@ -163,8 +163,9 @@ def test_on_single_graph():
     best_answer = float('+inf')
     best_answer_epoch = -1
     n_used_list = []
+    n_epochs = 100
 
-    for i in range(200):
+    for i in range(n_epochs):
         print("\n\nepoch: {}".format(i))
         optimizer.zero_grad()
         coloring, loss = colorizer.forward(graph, baseline.get_value())
@@ -172,6 +173,35 @@ def test_on_single_graph():
         n_used_list.append(n_used_colors)
         baseline.update(n_used_colors)
         loss.backward()
+
+
+        # from multi_head_attention import MultiHeadAttention
+
+        # def print_module_info(name, module):
+        #     if isinstance(module, nn.ModuleList):
+        #         for child in module:
+        #             print_module_info(name, child)
+        #         return 
+
+        #     if isinstance(module, MultiHeadAttention) and module.pointer_mode == False:
+        #         # plt.title('{} {}: data'.format(name, module))
+        #         # plt.hist(module.out.flatten().detach().cpu().numpy())
+        #         # plt.figure()
+
+        #         # plt.title('{} {}: grad'.format(name, module))
+        #         # plt.hist(module.out.grad.flatten().detach().cpu().numpy())
+        #         # plt.figure()
+        #         print('{}: {}'.format(name, module))
+        #         # print('data:', module.out.shape)
+        #         print('grad: ', module.out.grad.mean())
+
+        #     if name == "attn_combiner":
+        #         print('{}: {}'.format(name, module))
+        #         print(module[1])
+
+        # for name, module in colorizer.named_children():
+        #     print_module_info(name, module)
+        # plt.show()
 
         # print('embedding grads: ', torch.mean(colorizer.embeddings.grad), torch.std(colorizer.embeddings.grad))
         # for j in range(colorizer.n_attn_layers):

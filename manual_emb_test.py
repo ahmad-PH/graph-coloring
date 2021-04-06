@@ -18,8 +18,8 @@ import sys
 
 from manual_emb_main import learn_embeddings
 
-mode = "single_run"
-# mode = "dataset_run"
+# mode = "single_run"
+mode = "dataset_run"
 
 # G = snap.LoadEdgeList(snap.TNGraph, "../data/singular/new/p2p-Gnutella04.txt")
 # G = snap.LoadEdgeList(snap.TNGraph, "../data/singular/new/ca-HepTh.txt")
@@ -42,9 +42,9 @@ if mode == "single_run":
     # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
     # graph, n_clusters = generate_queens_graph(5,5), 5
-    # graph, n_clusters = generate_queens_graph(7,7), 7
+    graph, n_clusters = generate_queens_graph(7,7), 7
     # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
-    graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
+    # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
 
     # graph = Graph.load('../data/singular/ws_1000')
     # graph = Graph.load('../data/singular/k_1000')
@@ -80,8 +80,8 @@ if mode == "single_run":
     # graph = generate_kneser_graph(n, k)
     # print(graph.n_vertices, graph.n_edges, kneser_graph_chromatic_number(n, k))
 
-    # seed = np.random.randint(0, 1000000)
-    seed = 547519 # case study on q7_7
+    seed = np.random.randint(0, 1000000)
+    # seed = 547519 # case study on q7_7
     # seed = 348266 # peterson 1:
     # seed = 266412
     # seed = 72511 # error on peterson with dim=2
@@ -98,7 +98,7 @@ if mode == "single_run":
     np.random.seed(seed)
     print('seed is: ', seed)
 
-    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
+    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=True)
 
     print('results:')
     print(results)
@@ -131,10 +131,11 @@ if mode == "single_run":
     plt.savefig('/home/ahmad/Desktop/raw_losses.png')
     plt.figure()
 
-    plt.plot(data.n_color_performance)
-    plt.title('n_color_performance')
-    plt.savefig('/home/ahmad/Desktop/color_performance.png')
-    plt.show()
+    if data.n_color_performance:
+        plt.plot(data.n_color_performance)
+        plt.title('n_color_performance')
+        plt.savefig('/home/ahmad/Desktop/color_performance.png')
+        plt.show()
 
 
     # plt.plot(data.neighborhood_losses_p2, label='neighborhood_p2')
@@ -176,6 +177,8 @@ elif mode == "dataset_run":
         (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
         # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
         # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
+        (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
+        (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
     ]
 
     # dataset = [
@@ -219,8 +222,6 @@ elif mode == "dataset_run":
             summary.append([min_used_colors, ratio_of_good_runs, mean_used_colors, stddev_used_colors, np.mean(violation_ratio_list)])
             print('\n\n', file=out)
             out.flush()
-
-            print('success')
 
         print('summary:', file=out)
         for item in summary:
