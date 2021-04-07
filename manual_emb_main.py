@@ -186,28 +186,24 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         colors = correct_coloring(colors, graph)
         correction_t2 = time.time()
 
-        if verbose:
-            print('corrected_colors:')
-            print(colors)
-            if is_proper_coloring(colors, graph) == False:
-                raise Exception('corrected coloring is not correct!')
-            print('n_used_colors:', len(set(colors)))
-
-            plt.show()
+        # if verbose:
+        #     print('corrected_colors:')
+        #     print(colors)
+        #     if is_proper_coloring(colors, graph) == False:
+        #         raise Exception('corrected coloring is not correct!')
+        #     plt.show()
 
         n_used_colors = len(set(colors))
-        clustering_results.append([n_used_colors, violation_ratio, colors])
+        clustering_results.append([n_used_colors, violation_ratio, colors, cluster_centers])
 
     best_clustering_index = np.argmin([result[0] for result in clustering_results])
-    results.n_used_colors, results.violation_ratio, _ = clustering_results[best_clustering_index]
+    results.n_used_colors, results.violation_ratio, _, best_cluster_centers = clustering_results[best_clustering_index]
     clustering_t2 = time.time()
 
     if verbose:
-        print('end of phase 1:')
-        plt.figure()
         plot_points(embeddings, annotate=True)
-        plot_points(cluster_centers, c='orange')
-        plt.title('end of phase 1')
+        plot_points(best_cluster_centers, c='orange')
+        plt.figure()
 
     sim_matrix_time = sim_matrix_t2 - sim_matrix_t1
     phase1_time = phase_1_t2 - phase_1_t1
