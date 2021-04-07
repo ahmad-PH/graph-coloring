@@ -167,7 +167,7 @@ def reinitialize_embeddings(embeddings, loss_function, ratio = 0.1, n_candidates
 from networkx.algorithms.coloring import strategy_saturation_largest_first 
 
 def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
-    color_embeddings = torch.empty(graph.n_vertices, embeddings.size()[1], requires_grad=False)
+    color_embeddings = torch.empty(graph.n_vertices, embeddings.size()[1], requires_grad=False, device=embeddings.get_device())
     colors : Dict[int, int] = {}
     vertices_with_color: List[List[int]] = []
     n_used_colors = 0
@@ -217,4 +217,3 @@ def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
         # print('n_used_colors:', n_used_colors)
     
     return [colors[i] for i in range(graph.n_vertices)]
-    
