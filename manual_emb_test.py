@@ -181,8 +181,7 @@ elif mode == "dataset_run":
     ]
 
     # dataset = [
-    #     # (generate_queens_graph(7, 7), 7)
-    #     (generate_queens_graph(8,12), 12),
+    #     (generate_queens_graph(7, 7), 7)
     # ]
 
     # dataset = [
@@ -225,6 +224,7 @@ elif mode == "dataset_run":
 
         print('summary:', file=out)
         for item in summary:
-            print('{:.1f}, {:.1f},  {:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], item[2], item[3], 100 * item[4]), file=out)
+            print('{:.1f}, {:.1f},  {:.1f}, {:.2f}'.format(item[0], item[1], item[2], item[3]), file=out)
+            # print('{:.1f}, {:.1f},  {:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], item[2], item[3], 100 * item[4]), file=out)
         
         
