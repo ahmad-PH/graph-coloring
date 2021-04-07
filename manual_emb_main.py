@@ -20,15 +20,12 @@ import time
 
 def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
-    data.neighborhood_losses_p1 : List[float] = []
-    data.compactness_losses_p1 : List[float] = []
-    data.scaled_neighborhood_losses_p1 : List[float] = []
-    data.scaled_compactness_losses_p1 : List[float] = []
-    data.losses_p1 : List[float] = []
-
-    data.neighborhood_losses_p2 : List[float] = []
-    data.compactness_losses_p2 : List[float] = []
-    data.losses_p2 : List[float] = []
+    data.losses : Mapping[str, List(float)] = {}
+    loss_names = ['neighborhood_loss', 'compactness_loss', 
+        'scaled_neighborhood_loss', 'scaled_compactness_loss', 'overall'
+    ]
+    for loss_name in loss_names:
+        data.losses[loss_name] = []
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     results = DataDump()
@@ -135,11 +132,12 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
         lambda_1 = lambda_1_scheduler.get_next_value()
         loss = lambda_1 * neighborhood_loss + (1 - lambda_1) * compactness_loss # lambda_1 used to be for compactness
-        data.scaled_neighborhood_losses_p1.append(lambda_1 * neighborhood_loss)
-        data.scaled_compactness_losses_p1.append((1 - lambda_1) * compactness_loss)
-        data.neighborhood_losses_p1.append(neighborhood_loss)
-        data.compactness_losses_p1.append(compactness_loss)
-        data.losses_p1.append(loss)
+
+        data.losses['neighborhood_loss'].append(neighborhood_loss)
+        data.losses['compactness_loss'].append(compactness_loss)
+        data.losses['scaled_neighborhood_loss'].append(lambda_1 * neighborhood_loss)
+        data.losses['scaled_compactness_loss'].append((1 - lambda_1) * compactness_loss)
+        data.losses['overall'].append(loss)
 
         loss.backward()
         optimizer.step()

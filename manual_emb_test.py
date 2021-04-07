@@ -42,9 +42,9 @@ if mode == "single_run":
     # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
     # graph, n_clusters = generate_queens_graph(5,5), 5
-    # graph, n_clusters = generate_queens_graph(7,7), 7
+    graph, n_clusters = generate_queens_graph(7,7), 7
     # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
-    graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
+    # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
 
     # graph = Graph.load('../data/singular/ws_1000')
     # graph = Graph.load('../data/singular/k_1000')
@@ -80,8 +80,8 @@ if mode == "single_run":
     # graph = generate_kneser_graph(n, k)
     # print(graph.n_vertices, graph.n_edges, kneser_graph_chromatic_number(n, k))
 
-    # seed = np.random.randint(0, 1000000)
-    seed = 547519 # case study on q7_7
+    seed = np.random.randint(0, 1000000)
+    # seed = 547519 # case study on q7_7
     # seed = 348266 # peterson 1:
     # seed = 266412
     # seed = 72511 # error on peterson with dim=2
@@ -98,7 +98,7 @@ if mode == "single_run":
     np.random.seed(seed)
     print('seed is: ', seed)
 
-    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
+    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=True)
 
     print('results:')
     print(results)
@@ -115,17 +115,16 @@ if mode == "single_run":
     # torch.save(embeddings, 'q6_6.pt')
 
     # plot the losses:
-    plt.plot(data.scaled_neighborhood_losses_p1, label='scaled_neighborhood')
-    plt.plot(data.scaled_compactness_losses_p1, label='scaled_compactness')
-    # plt.plot(data.centroid_losses_p1, label='centroid')
-    plt.plot(data.losses_p1, label='overall')
+    plt.plot(data.losses['scaled_neighborhood_loss'], label='scaled_neighborhood')
+    plt.plot(data.losses['scaled_compactness_loss'], label='scaled_compactness')
+    plt.plot(data.losses['overall'], label='overall')
     plt.legend()
     plt.title('losses')
     plt.savefig('/home/ahmad/Desktop/losses.png')
     plt.figure()
 
-    plt.plot(data.neighborhood_losses_p1, label='neighborhood')
-    plt.plot(data.compactness_losses_p1, label='compactness')
+    plt.plot(data.losses['neighborhood_loss'], label='neighborhood')
+    plt.plot(data.losses['compactness_loss'], label='compactness')
     plt.legend()
     plt.title('raw losses')
     plt.savefig('/home/ahmad/Desktop/raw_losses.png')
