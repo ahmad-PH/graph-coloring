@@ -216,4 +216,8 @@ def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
         # print('updated color embedding:', color_embeddings[selected_color])
         # print('n_used_colors:', n_used_colors)
     
+    for i in range(graph.n_vertices):
+        if i not in colors: # isolated nodes are never visited
+            colors[i] = 0
+
     return [colors[i] for i in range(graph.n_vertices)]
