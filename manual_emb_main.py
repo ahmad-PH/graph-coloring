@@ -143,6 +143,8 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
     # phase 2
     coloring = colorize_embedding_guided_slf(embeddings.detach(), graph)
+
+    assert(is_proper_coloring(coloring, graph))
     # print('coloring:', coloring)
     # print('n_used: ', len(set(coloring)))
     results.n_used_colors = len(set(coloring))
