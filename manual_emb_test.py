@@ -42,7 +42,8 @@ if mode == "single_run":
     # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
     # graph, n_clusters = generate_queens_graph(5,5), 5
-    graph, n_clusters = generate_queens_graph(7,7), 7
+    # graph, n_clusters = generate_queens_graph(7,7), 7
+    graph, n_clusters = generate_queens_graph(13,13), 13
     # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
     # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
 
@@ -130,11 +131,11 @@ if mode == "single_run":
     plt.savefig('/home/ahmad/Desktop/raw_losses.png')
     plt.figure()
 
-    plt.plot(data.n_color_performance)
-    plt.title('n_color_performance')
-    plt.savefig('/home/ahmad/Desktop/color_performance.png')
-    plt.show()
-
+    if (data.n_color_performance):
+        plt.plot(data.n_color_performance)
+        plt.title('n_color_performance')
+        plt.savefig('/home/ahmad/Desktop/color_performance.png')
+        plt.show()
 
     # plt.plot(data.neighborhood_losses_p2, label='neighborhood_p2')
     # plt.plot(data.compactness_losses_p2, label='compactness_p2')
