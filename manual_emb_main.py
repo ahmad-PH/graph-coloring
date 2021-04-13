@@ -163,24 +163,24 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         properties = coloring_properties(colors, graph)
         violation_ratio = properties[2]
 
-        if verbose:
-            print('colors:')
-            print(colors)
-            print('properties:')
-            print(properties)
+        # if verbose:
+        #     print('colors:')
+        #     print(colors)
+        #     print('properties:')
+        #     print(properties)
 
             # plt.figure()
             # plot_points(embeddings, annotate=True)
             # plot_points(cluster_centers, c='orange', annotate=True)
             # plt.title('end of phase 2')
 
-        if verbose:
-            violators = set([])
-            for v1, row in enumerate(graph.adj_list):
-                for v2 in row:
-                    if colors[v1] == colors[v2]:
-                        violators.add(v1)
-                        print('violation: ({}, {})'.format(v1, v2))
+        # if verbose:
+        #     violators = set([])
+        #     for v1, row in enumerate(graph.adj_list):
+        #         for v2 in row:
+        #             if colors[v1] == colors[v2]:
+        #                 violators.add(v1)
+        #                 print('violation: ({}, {})'.format(v1, v2))
 
         correction_t1 = time.time()
         colors = correct_coloring(colors, graph)
