@@ -173,6 +173,37 @@ def test_on_single_graph():
         baseline.update(n_used_colors)
         loss.backward()
 
+
+        # from multi_head_attention import MultiHeadAttention
+
+        # def print_module_info(name, module):
+        #     if isinstance(module, nn.ModuleList):
+        #         for child in module:
+        #             print_module_info(name, child)
+        #         return 
+
+        #     if isinstance(module, MultiHeadAttention) and module.pointer_mode == False:
+        #         # plt.title('{} {}: data'.format(name, module))
+        #         # plt.hist(module.out.flatten().detach().cpu().numpy())
+        #         # plt.figure()
+
+        #         # plt.title('{} {}: grad'.format(name, module))
+        #         # plt.hist(module.out.grad.flatten().detach().cpu().numpy())
+        #         # plt.figure()
+        #         print('{}: {}'.format(name, module))
+        #         # print('data:', module.out.shape)
+        #         print('grad: ', module.out.grad.mean())
+
+        #     if name == "attn_combiner":
+        #         print('{}: {}'.format(name, module))
+        #         print(module[1])
+
+        # for name, module in colorizer.named_children():
+        #     print_module_info(name, module)
+        # plt.show()
+ 
+
+
         # print('embedding grads: ', torch.mean(colorizer.embeddings.grad), torch.std(colorizer.embeddings.grad))
         # for j in range(colorizer.n_attn_layers):
         #     print('attn grad:', torch.mean(colorizer.neighb_attns[j].W.grad), torch.std(colorizer.neighb_attns[j].W.grad))
