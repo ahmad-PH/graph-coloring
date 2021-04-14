@@ -8,6 +8,7 @@ from networkx.algorithms.coloring.greedy_coloring import greedy_color
 from networkx.algorithms.clique import find_cliques, graph_clique_number
 from exact_coloring import find_k_coloring
 from manual_emb_utility import *
+from sim_matrix_registry import SimMatrixRegistry
 
 import torch
 import torch.nn as nn
@@ -45,31 +46,13 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         # print('type:', inverted_adj_matrix.dtype)
 
         sim_matrix_t1 = time.time()
-        overlap_matrix = torch.zeros(graph.n_vertices, graph.n_vertices).to(device)
-        for i in range(graph.n_vertices):
-            for j in range(i + 1, graph.n_vertices):
-                n_i = set(graph.adj_list[i])
-                n_j = set(graph.adj_list[j])
-                overlap_matrix[i][j] = len(n_i.intersection(n_j)) / (len(n_i.union(n_j)) + 1e-8)
-
-            for j in range(0, i):
-                overlap_matrix[i][j] = overlap_matrix[j][i]
-
-            overlap_matrix[i][i] = 0 # nodes are not similar with themselves
-            overlap_matrix[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
-
-        global_overlap_matrix = torch.zeros_like(overlap_matrix)
-        n_terms = 1
-        beta = 0.9
-        for i in range(1, n_terms + 1):
-            global_overlap_matrix += (beta ** (i-1)) * torch.matrix_power(overlap_matrix, i)
-        
-        for i in range(graph.n_vertices):
-            global_overlap_matrix[i][i] = 0
-            global_overlap_matrix[i][graph.adj_list[i]] = 0 # suppress entries of neighbors
-
-        lambda_3 = 5.
-        similarity_matrix = inverted_adj_matrix + lambda_3 * global_overlap_matrix
+        registry = SimMatrixRegistry.get_instance()
+        similarity_matrix = registry.get_similarity_matrix(graph.name)
+        if similarity_matrix == None:
+            if verbose:
+                print('No existing similarity matrix detected for graph {}, creating one.'.format(graph.name))
+            similarity_matrix = calculate_similarity_matrix(graph, inverted_adj_matrix, device)
+            registry.register_similarity_matrix(similarity_matrix, graph.name)
         sim_matrix_t2 = time.time()
         
     optimizer = torch.optim.Adam([embeddings], lr=0.1)

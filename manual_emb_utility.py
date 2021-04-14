@@ -216,3 +216,34 @@ def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
         # print('n_used_colors:', n_used_colors)
     
     return [colors[i] for i in range(graph.n_vertices)]
+
+
+def calculate_similarity_matrix(graph: Graph, inverted_adj_matrix, device) -> torch.Tensor:
+    # =================== WARNING ========================
+    # when you change this code, you need to delete the .sim_matrix_registry directory
+    overlap_matrix = torch.zeros(graph.n_vertices, graph.n_vertices).to(device)
+    for i in range(graph.n_vertices):
+        for j in range(i + 1, graph.n_vertices):
+            n_i = set(graph.adj_list[i])
+            n_j = set(graph.adj_list[j])
+            overlap_matrix[i][j] = len(n_i.intersection(n_j)) / (len(n_i.union(n_j)) + 1e-8)
+
+        for j in range(0, i):
+            overlap_matrix[i][j] = overlap_matrix[j][i]
+
+        overlap_matrix[i][i] = 0 # nodes are not similar with themselves
+        overlap_matrix[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
+
+    global_overlap_matrix = torch.zeros_like(overlap_matrix)
+    n_terms = 1
+    beta = 0.9
+    for i in range(1, n_terms + 1):
+        global_overlap_matrix += (beta ** (i-1)) * torch.matrix_power(overlap_matrix, i)
+    
+    for i in range(graph.n_vertices):
+        global_overlap_matrix[i][i] = 0
+        global_overlap_matrix[i][graph.adj_list[i]] = 0 # suppress entries of neighbors
+
+    lambda_3 = 5.
+    similarity_matrix = inverted_adj_matrix + lambda_3 * global_overlap_matrix
+    return similarity_matrix
