@@ -150,43 +150,43 @@ elif mode == "dataset_run":
 
     embedding_dim = 10
 
-    # dataset = [
-    #     (graph1, 3),
-    #     (graph2, 2),
-    #     (graph3, 3),
-    #     (bipartite_10_vertices, 2),
-    #     (slf_hard, 3),
-    #     (petersen_graph, 3),
-    #     (generate_queens_graph(5,5), 5),
-    #     (generate_queens_graph(6,6), 7),
-    #     (generate_queens_graph(7,7), 7),
-    #     (generate_queens_graph(8,8), 9),
-    #     (generate_queens_graph(8,12), 12),
-    #     (generate_queens_graph(13, 13), 13),
-    #     (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
-    #     (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
-    #     (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
-    #     # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
-    #     (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
-    #     (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
-    #     (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
-    #     # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
-    #     (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
-    #     (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
-    #     # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
-    #     # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
-    # ]
+    dataset = [
+        (graph1, 3),
+        (graph2, 2),
+        (graph3, 3),
+        (bipartite_10_vertices, 2),
+        (slf_hard, 3),
+        (petersen_graph, 3),
+        (generate_queens_graph(5,5), 5),
+        (generate_queens_graph(6,6), 7),
+        (generate_queens_graph(7,7), 7),
+        (generate_queens_graph(8,8), 9),
+        (generate_queens_graph(8,12), 12),
+        (generate_queens_graph(13, 13), 13),
+        (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
+        (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
+        (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
+        # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
+        (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
+        (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
+        (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
+        # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
+        (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
+        (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
+        # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
+        # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
+    ]
 
     # dataset = [
     #     # (generate_queens_graph(7, 7), 7)
     #     (generate_queens_graph(8,12), 12),
     # ]
 
-    dataset = [
-        (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
-        (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
-        # (Graph.load('../data/singular/new/ca-HepTh.graph').set_name('ca-HepTh'), 32), # DSATUR
-    ]
+    # dataset = [
+    #     (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
+    #     (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
+    #     # (Graph.load('../data/singular/new/ca-HepTh.graph').set_name('ca-HepTh'), 32), # DSATUR
+    # ]
 
     n_runs_per_graph = 10
 

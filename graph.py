@@ -44,7 +44,7 @@ class Graph:
     def load(source: Union[str, TextIOBase]):
         if isinstance(source, str):
             with open(source, 'r') as f:
-                return Graph._load(f)
+                return Graph._load(f).set_name(source)
         elif isinstance(source, TextIOBase):
             return Graph._load(source)
 

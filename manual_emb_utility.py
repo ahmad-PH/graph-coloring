@@ -130,8 +130,8 @@ def compute_neighborhood_losses(embeddings, adj_matrix, precomputed_distances = 
         distances = precomputed_distances
     epsilon = 1e-10
     # inverse_distances_old = 1. / (distances + epsilon)
-    inverse_distances = torch.pow(distances + epsilon, -1)
-    # inverse_distances = torch.log(torch.tensor(10.)) - torch.log(distances + epsilon)
+    # inverse_distances = torch.pow(distances + epsilon, -1)
+    inverse_distances = torch.log(torch.tensor(10.)) - torch.log(distances + epsilon)
     # inverse_distances = (10 - torch.clamp_max(distances, 10)) ** 2
     n_neighbors = torch.sum(adj_matrix, dim=1, keepdim=True)
     return torch.sum(inverse_distances * adj_matrix.float() / (n_neighbors + epsilon), dim=1)
