@@ -202,6 +202,8 @@ def test_on_single_graph():
         # for name, module in colorizer.named_children():
         #     print_module_info(name, module)
         # plt.show()
+ 
+
 
         # print('embedding grads: ', torch.mean(colorizer.embeddings.grad), torch.std(colorizer.embeddings.grad))
         # for j in range(colorizer.n_attn_layers):

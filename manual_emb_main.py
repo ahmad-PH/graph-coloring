@@ -20,15 +20,12 @@ import time
 
 def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
-    data.neighborhood_losses_p1 : List[float] = []
-    data.compactness_losses_p1 : List[float] = []
-    data.scaled_neighborhood_losses_p1 : List[float] = []
-    data.scaled_compactness_losses_p1 : List[float] = []
-    data.losses_p1 : List[float] = []
-
-    data.neighborhood_losses_p2 : List[float] = []
-    data.compactness_losses_p2 : List[float] = []
-    data.losses_p2 : List[float] = []
+    data.losses : Mapping[str, List(float)] = {}
+    loss_names = ['neighborhood_loss', 'compactness_loss', 
+        'scaled_neighborhood_loss', 'scaled_compactness_loss', 'overall'
+    ]
+    for loss_name in loss_names:
+        data.losses[loss_name] = []
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     results = DataDump()
@@ -135,11 +132,12 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
         lambda_1 = lambda_1_scheduler.get_next_value()
         loss = lambda_1 * neighborhood_loss + (1 - lambda_1) * compactness_loss # lambda_1 used to be for compactness
-        data.scaled_neighborhood_losses_p1.append(lambda_1 * neighborhood_loss)
-        data.scaled_compactness_losses_p1.append((1 - lambda_1) * compactness_loss)
-        data.neighborhood_losses_p1.append(neighborhood_loss)
-        data.compactness_losses_p1.append(compactness_loss)
-        data.losses_p1.append(loss)
+
+        data.losses['neighborhood_loss'].append(neighborhood_loss)
+        data.losses['compactness_loss'].append(compactness_loss)
+        data.losses['scaled_neighborhood_loss'].append(lambda_1 * neighborhood_loss)
+        data.losses['scaled_compactness_loss'].append((1 - lambda_1) * compactness_loss)
+        data.losses['overall'].append(loss)
 
         loss.backward()
         optimizer.step()
@@ -165,51 +163,47 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         properties = coloring_properties(colors, graph)
         violation_ratio = properties[2]
 
-        if verbose:
-            print('colors:')
-            print(colors)
-            print('properties:')
-            print(properties)
+        # if verbose:
+        #     print('colors:')
+        #     print(colors)
+        #     print('properties:')
+        #     print(properties)
 
             # plt.figure()
             # plot_points(embeddings, annotate=True)
             # plot_points(cluster_centers, c='orange', annotate=True)
             # plt.title('end of phase 2')
 
-        if verbose:
-            violators = set([])
-            for v1, row in enumerate(graph.adj_list):
-                for v2 in row:
-                    if colors[v1] == colors[v2]:
-                        violators.add(v1)
-                        print('violation: ({}, {})'.format(v1, v2))
+        # if verbose:
+        #     violators = set([])
+        #     for v1, row in enumerate(graph.adj_list):
+        #         for v2 in row:
+        #             if colors[v1] == colors[v2]:
+        #                 violators.add(v1)
+        #                 print('violation: ({}, {})'.format(v1, v2))
 
         correction_t1 = time.time()
         colors = correct_coloring(colors, graph)
         correction_t2 = time.time()
 
-        if verbose:
-            print('corrected_colors:')
-            print(colors)
-            if is_proper_coloring(colors, graph) == False:
-                raise Exception('corrected coloring is not correct!')
-            print('n_used_colors:', len(set(colors)))
-
-            plt.show()
+        # if verbose:
+        #     print('corrected_colors:')
+        #     print(colors)
+        #     if is_proper_coloring(colors, graph) == False:
+        #         raise Exception('corrected coloring is not correct!')
+        #     plt.show()
 
         n_used_colors = len(set(colors))
-        clustering_results.append([n_used_colors, violation_ratio, colors])
+        clustering_results.append([n_used_colors, violation_ratio, colors, cluster_centers])
 
     best_clustering_index = np.argmin([result[0] for result in clustering_results])
-    results.n_used_colors, results.violation_ratio, _ = clustering_results[best_clustering_index]
+    results.n_used_colors, results.violation_ratio, _, best_cluster_centers = clustering_results[best_clustering_index]
     clustering_t2 = time.time()
 
     if verbose:
-        print('end of phase 1:')
-        plt.figure()
         plot_points(embeddings, annotate=True)
-        plot_points(cluster_centers, c='orange')
-        plt.title('end of phase 1')
+        plot_points(best_cluster_centers, c='orange')
+        plt.figure()
 
     sim_matrix_time = sim_matrix_t2 - sim_matrix_t1
     phase1_time = phase_1_t2 - phase_1_t1

@@ -2,6 +2,7 @@ from graph import Graph
 from utility import *
 from graph_utility import *
 from sklearn.decomposition import PCA
+from typing import Mapping, List, Dict
 
 import torch
 import torch.nn as nn
@@ -61,52 +62,6 @@ def correct_coloring(coloring, graph: Graph):
         # print('added oclor:', new_color)
 
     return coloring
-
-# def correct_coloring(coloring, graph):
-#     coloring = np.array(coloring)
-#     colors_used = set(coloring)
-#     n_colors_used = len(colors_used)
-
-#     # TESTCOUNTER = 0
-#     while(True):
-#         # print('finding violators, counter: {}'.format(TESTCOUNTER))
-#         # TESTCOUNTER += 1
-#         n_violations = [0] * graph.n_vertices
-#         found_violations = False
-#         for v1, row in enumerate(graph.adj_list):
-#             for v2 in row:
-#                 if coloring[v1] == coloring[v2]:
-#                     n_violations[v1] += 1
-#                     found_violations = True
-
-#         if not found_violations:
-#             break
-
-#         fixed_a_vertex = False
-#         for v in range(graph.n_vertices):
-#             if n_violations[v] > 0:
-#                 forbidden_colors = set(coloring[graph.adj_list[v]])
-#                 if len(forbidden_colors) < n_colors_used:
-#                     possible_colors = colors_used - forbidden_colors
-#                     print('p: {}, n_used: {}, used:{}, forbidden: {}'.format(possible_colors, n_colors_used, colors_used, forbidden_colors))
-#                     # prev_color = coloring[v] # TEST
-#                     coloring[v] = next(iter(possible_colors)) # maybe choose something other than 0 ? (the one with least loss maybe)
-#                     fixed_a_vertex = True
-#                     # print('vertex fixed without new color: {}, from {} to {}, with possible colors: {}'.format(
-#                         # v, prev_color, coloring[v], possible_colors
-#                     # ))
-#                     break
-        
-#         if fixed_a_vertex:
-#             continue
-        
-#         max_violator = np.argmax(n_violations)
-#         new_color = n_colors_used
-#         # print('choosing new color: {} for the max violator: {}'.format(new_color, max_violator))
-#         coloring[max_violator] = new_color
-#         colors_used.add(new_color)
-#         n_colors_used += 1
-#         print('added oclor:', new_color)
 
 def compute_pairwise_distances(vectors1, vectors2):
     n1 = vectors1.shape[0]
@@ -176,10 +131,8 @@ def compute_neighborhood_losses(embeddings, adj_matrix, precomputed_distances = 
     epsilon = 1e-10
     # inverse_distances_old = 1. / (distances + epsilon)
     inverse_distances = torch.pow(distances + epsilon, -1)
-    # print('max distance:', torch.max(distances))
+    # inverse_distances = torch.log(torch.tensor(10.)) - torch.log(distances + epsilon)
     # inverse_distances = (10 - torch.clamp_max(distances, 10)) ** 2
-    # print('inverse:')
-    # print(inverse_distances)
     n_neighbors = torch.sum(adj_matrix, dim=1, keepdim=True)
     return torch.sum(inverse_distances * adj_matrix.float() / (n_neighbors + epsilon), dim=1)
 
@@ -207,3 +160,58 @@ def reinitialize_embeddings(embeddings, loss_function, ratio = 0.1, n_candidates
                 best_embeddings = new_embeddings
 
     embeddings.data = best_embeddings.data
+
+
+from networkx.algorithms.coloring import strategy_saturation_largest_first 
+
+def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
+    color_embeddings = torch.empty(graph.n_vertices, embeddings.size()[1], requires_grad=False, device=embeddings.get_device())
+    colors : Dict[int, int] = {}
+    vertices_with_color: List[List[int]] = []
+    n_used_colors = 0
+
+    # print('embeddings:', embeddings)
+
+    node_order = strategy_saturation_largest_first(graph.get_nx_graph(), colors)
+    for u in node_order:
+        # print('\n\nvisiting node {}'.format(u))
+
+        neighborhood_colors = {colors[v] for v in graph.adj_list[u] if v in colors}
+        remaining_colors = list(set(range(n_used_colors)).difference(neighborhood_colors))
+        remaining_colors_len = len(remaining_colors)
+
+        # print('neighborhood colors: ', neighborhood_colors)
+        # print('remaining colors:', remaining_colors)
+
+        if remaining_colors_len > 1:
+            embedding_repeated = embeddings[u].unsqueeze(0).repeat(remaining_colors_len, 1)
+            remaining_color_embeddings = color_embeddings[remaining_colors]
+            distances = torch.norm(embedding_repeated - remaining_color_embeddings, dim=1)
+            closest_embedding = int(torch.argmin(distances).data)
+            selected_color = remaining_colors[closest_embedding]
+
+            # print('len > 1')
+            # print('embedding_repeated:', embedding_repeated)
+            # print('remaining_color_embeddings:', remaining_color_embeddings)
+            # print('distances:', distances)
+            # print('closest:', closest_embedding)
+            # print('selected_color:', selected_color)
+
+        elif remaining_colors_len == 1:
+            selected_color = remaining_colors[0]
+
+        else: # remaining_colors_len == 0
+            selected_color = n_used_colors
+            n_used_colors += 1
+            vertices_with_color.append([])
+
+        colors[u] = selected_color
+        vertices_with_color[selected_color].append(u)
+        color_embeddings[selected_color] = torch.mean(embeddings[vertices_with_color[selected_color]], dim=0)
+
+        # print('coloring: ', colors)
+        # print('vertices of each color:', vertices_with_color)
+        # print('updated color embedding:', color_embeddings[selected_color])
+        # print('n_used_colors:', n_used_colors)
+    
+    return [colors[i] for i in range(graph.n_vertices)]

@@ -42,8 +42,9 @@ if mode == "single_run":
     # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
     # graph, n_clusters = generate_queens_graph(5,5), 5
-    graph, n_clusters = generate_queens_graph(7,7), 7
-    # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
+    # graph, n_clusters = generate_queens_graph(7,7), 7
+    # graph, n_clusters = generate_queens_graph(13,13), 13
+    graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
     # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
 
     # graph = Graph.load('../data/singular/ws_1000')
@@ -115,28 +116,25 @@ if mode == "single_run":
     # torch.save(embeddings, 'q6_6.pt')
 
     # plot the losses:
-    plt.plot(data.scaled_neighborhood_losses_p1, label='scaled_neighborhood')
-    plt.plot(data.scaled_compactness_losses_p1, label='scaled_compactness')
-    # plt.plot(data.centroid_losses_p1, label='centroid')
-    plt.plot(data.losses_p1, label='overall')
+    plt.plot(data.losses['scaled_neighborhood_loss'], label='scaled_neighborhood')
+    plt.plot(data.losses['scaled_compactness_loss'], label='scaled_compactness')
+    plt.plot(data.losses['overall'], label='overall')
     plt.legend()
     plt.title('losses')
     plt.savefig('/home/ahmad/Desktop/losses.png')
     plt.figure()
 
-    plt.plot(data.neighborhood_losses_p1, label='neighborhood')
-    plt.plot(data.compactness_losses_p1, label='compactness')
+    plt.plot(data.losses['neighborhood_loss'], label='neighborhood')
+    plt.plot(data.losses['compactness_loss'], label='compactness')
     plt.legend()
     plt.title('raw losses')
     plt.savefig('/home/ahmad/Desktop/raw_losses.png')
     plt.figure()
 
-    if data.n_color_performance:
-        plt.plot(data.n_color_performance)
-        plt.title('n_color_performance')
-        plt.savefig('/home/ahmad/Desktop/color_performance.png')
-        plt.show()
-
+    plt.plot([i*10 for i in range(len(data.n_color_performance))], data.n_color_performance)
+    plt.title('n_color_performance')
+    plt.savefig('/home/ahmad/Desktop/color_performance.png')
+    plt.show()
 
     # plt.plot(data.neighborhood_losses_p2, label='neighborhood_p2')
     # plt.plot(data.compactness_losses_p2, label='compactness_p2')
@@ -152,45 +150,43 @@ elif mode == "dataset_run":
 
     embedding_dim = 10
 
-    dataset = [
-        (graph1, 3),
-        (graph2, 2),
-        (graph3, 3),
-        (bipartite_10_vertices, 2),
-        (slf_hard, 3),
-        (petersen_graph, 3),
-        (generate_queens_graph(5,5), 5),
-        (generate_queens_graph(6,6), 7),
-        (generate_queens_graph(7,7), 7),
-        (generate_queens_graph(8,8), 9),
-        (generate_queens_graph(8,12), 12),
-        (generate_queens_graph(13, 13), 13),
-        (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
-        (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
-        (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
-        # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
-        (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
-        (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
-        (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
-        # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
-        (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
-        (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
-        # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
-        # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
-        (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
-        (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
-    ]
+    # dataset = [
+    #     (graph1, 3),
+    #     (graph2, 2),
+    #     (graph3, 3),
+    #     (bipartite_10_vertices, 2),
+    #     (slf_hard, 3),
+    #     (petersen_graph, 3),
+    #     (generate_queens_graph(5,5), 5),
+    #     (generate_queens_graph(6,6), 7),
+    #     (generate_queens_graph(7,7), 7),
+    #     (generate_queens_graph(8,8), 9),
+    #     (generate_queens_graph(8,12), 12),
+    #     (generate_queens_graph(13, 13), 13),
+    #     (Graph.load('../data/singular/ws_10').set_name('ws_10'), 4), # chi
+    #     (Graph.load('../data/singular/ws_100').set_name('ws_100'), 4), # DSATUR
+    #     (Graph.load('../data/singular/ws_1000').set_name('ws_1000'), 4), # DSATUR
+    #     # (Graph.load('../data/singular/ws_10000').set_name('ws_10000'), -1),
+    #     (Graph.load('../data/singular/k_10').set_name('k_10'), 3), # chi
+    #     (Graph.load('../data/singular/k_100').set_name('k_100'), 6), # chi
+    #     (Graph.load('../data/singular/k_1000').set_name('k_1000'), 5), # chi
+    #     # (Graph.load('../data/singular/k_10000').set_name('k_10000'), 4),
+    #     (Graph.load('../data/singular/er_10').set_name('er_10'), 5), # DSATUR
+    #     (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
+    #     # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
+    #     # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
+    # ]
 
     # dataset = [
     #     # (generate_queens_graph(7, 7), 7)
     #     (generate_queens_graph(8,12), 12),
     # ]
 
-    # dataset = [
-    #     (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
-    #     (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
-    #     # (Graph.load('../data/singular/new/ca-HepTh.graph').set_name('ca-HepTh'), 32), # DSATUR
-    # ]
+    dataset = [
+        (Graph.load('../data/singular/new/email-Eu-core.graph').set_name('email-Eu-core'), 21), # DSATUR
+        (Graph.load('../data/singular/new/CollegeMsg.graph').set_name('CollegeMsg'), 10), # DSATUR
+        # (Graph.load('../data/singular/new/ca-HepTh.graph').set_name('ca-HepTh'), 32), # DSATUR
+    ]
 
     n_runs_per_graph = 10
 

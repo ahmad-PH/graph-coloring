@@ -15,7 +15,7 @@ from graph_utility import generate_kneser_graph, generate_queens_graph, sort_gra
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
 from exact_coloring import find_k_coloring
-from manual_emb_utility import correct_coloring
+from manual_emb_utility import correct_coloring, colorize_embedding_guided_slf
 
 graph1 = Graph([
     [1, 3],
@@ -488,4 +488,18 @@ class TestCorrectColoring(unittest.TestCase):
         corrected_coloring = correct_coloring(coloring, graph2)
         self.assertTrue(is_proper_coloring(corrected_coloring, graph2))
         
+
+class TestColorizeEmbeddingGuidedSlf(unittest.TestCase):
+    def test_happy_scenario_1(self):
+        embeddings = torch.tensor([[0.4963, 0.7682],
+        [0.0885, 0.1320],
+        [0.3074, 0.6341],
+        [0.4901, 0.8964],
+        [0.4556, 0.6323],
+        [0.3489, 0.4017],
+        [0.0223, 0.1689],
+        [0.2939, 0.5185]])
+
+        coloring = colorize_embedding_guided_slf(embeddings, slf_hard)
+        self.assertListEqual(coloring, [0, 1, 2, 2, 2, 2, 1, 0])
 
