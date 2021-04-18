@@ -274,4 +274,8 @@ def colorize_embedding_guided_slf_max(embeddings: torch.Tensor, graph: Graph):
         # print('selected_color: ', selected_color)
         # print('coloring: ', colors)
     
+    for i in range(graph.n_vertices):
+        if i not in colors: # isolated nodes are never visited
+            colors[i] = 0
+
     return [colors[i] for i in range(graph.n_vertices)]
