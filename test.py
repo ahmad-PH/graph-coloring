@@ -18,6 +18,7 @@ from snap_utility import edgelist_eliminate_self_loops
 from exact_coloring import find_k_coloring
 from sim_matrix_registry import SimMatrixRegistry
 from manual_emb_utility import correct_coloring, colorize_embedding_guided_slf_mean, colorize_embedding_guided_slf_max
+from test_data_generator import generate_random_mapping
 
 graph1 = Graph([
     [1, 3],
@@ -542,3 +543,19 @@ class TestSimMatrixRegistry(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.registry.working_dir_path)
 
+
+
+class TestGenerateRandomMapping(unittest.TestCase):
+    def test_x(self):
+        np.random.seed(0)
+        for i in range(100):
+            n_vertices = np.random.randint(50, 100)
+            n_colors = np.random.randint(1, 50)
+            mapping = generate_random_mapping(n_vertices, n_colors)
+            
+            color_selected_n_times = [0] * n_colors
+            for c in mapping:
+                color_selected_n_times[c] += 1
+            for selected_n_times in color_selected_n_times:
+                self.assertGreater(selected_n_times, 0)
+            
