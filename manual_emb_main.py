@@ -92,7 +92,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
             # plt.clf()
 
         if i % 10 == 0 and verbose:
-            colors = colorize_embedding_guided_slf(embeddings.detach(), graph)
+            colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
             n_used_colors = len(set(colors))
             data.n_color_performance.append(n_used_colors)
 
@@ -142,7 +142,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     phase_1_t2 = time.time()
 
     # phase 2
-    coloring = colorize_embedding_guided_slf(embeddings.detach(), graph)
+    coloring = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
 
     assert(is_proper_coloring(coloring, graph))
     # print('coloring:', coloring)
