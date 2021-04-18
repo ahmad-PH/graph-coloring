@@ -75,13 +75,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
             # plt.clf()
 
         if i % 10 == 0 and verbose:
-            kmeans = KMeans(n_clusters)
-            kmeans.fit(embeddings.detach().cpu().numpy())
-            cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
-
-            colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
-            colors = colors.detach().cpu().numpy()
-            colors = correct_coloring(colors, graph)
+            colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
             n_used_colors = len(set(colors))
             data.n_color_performance.append(n_used_colors)
 
@@ -131,6 +125,12 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     phase_1_t2 = time.time()
 
     # phase 2
+
+    # # slf code:
+    # coloring = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
+    # assert(is_proper_coloring(coloring, graph))
+    # results.n_used_colors = len(set(coloring))
+
     clustering_t1 = time.time()
     clustering_results = []
     for i in range(11):
@@ -183,20 +183,16 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     results.n_used_colors, results.violation_ratio, _, best_cluster_centers = clustering_results[best_clustering_index]
     clustering_t2 = time.time()
 
-    if verbose:
-        plot_points(embeddings, annotate=True)
-        plot_points(best_cluster_centers, c='orange')
-        plt.figure()
 
     sim_matrix_time = sim_matrix_t2 - sim_matrix_t1
     phase1_time = phase_1_t2 - phase_1_t1
-    clustering_time = clustering_t2 - clustering_t1
-    correction_time = correction_t2 - correction_t1
+    # clustering_time = clustering_t2 - clustering_t1
+    # correction_time = correction_t2 - correction_t1
 
     if verbose:
         print('sim_matrix time: ', sim_matrix_time)
         print('phase1 time: ', phase1_time)
-        print('clustering time: ', clustering_time)
-        print('correction time: ', correction_time)
+        # print('clustering time: ', clustering_time)
+        # print('correction time: ', correction_time)
 
     return embeddings, results

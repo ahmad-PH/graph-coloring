@@ -164,7 +164,7 @@ def reinitialize_embeddings(embeddings, loss_function, ratio = 0.1, n_candidates
 
 from networkx.algorithms.coloring import strategy_saturation_largest_first 
 
-def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
+def colorize_embedding_guided_slf_mean(embeddings: torch.Tensor, graph: Graph):
     device = "cuda:{}".format(embeddings.get_device()) if embeddings.get_device() != -1 else "cpu"
     color_embeddings = torch.empty(graph.n_vertices, embeddings.size()[1], requires_grad=False, device=device)
     colors : Dict[int, int] = {}
@@ -215,6 +215,67 @@ def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
         # print('updated color embedding:', color_embeddings[selected_color])
         # print('n_used_colors:', n_used_colors)
     
+    for i in range(graph.n_vertices):
+        if i not in colors: # isolated nodes are never visited
+            colors[i] = 0
+
+    return [colors[i] for i in range(graph.n_vertices)]
+
+
+def colorize_embedding_guided_slf_max(embeddings: torch.Tensor, graph: Graph):
+    device = "cuda:{}".format(embeddings.get_device()) if embeddings.get_device() != -1 else "cpu"
+    colors : Dict[int, int] = {}
+    vertices_with_color: List[List[int]] = []
+    n_used_colors = 0
+
+    node_order = strategy_saturation_largest_first(graph.get_nx_graph(), colors)
+    for u in node_order:
+        # print('\n\nvisiting node {}'.format(u))
+
+        neighborhood_colors = {colors[v] for v in graph.adj_list[u] if v in colors}
+        remaining_colors = list(set(range(n_used_colors)).difference(neighborhood_colors))
+        remaining_colors_len = len(remaining_colors)
+
+        # print('neighborhood colors: ', neighborhood_colors)
+        # print('remaining colors:', remaining_colors)
+
+        if remaining_colors_len > 1:
+            # print('len > 1')
+            # print('vertices_with_color:', vertices_with_color)
+            distances_from_remaining_colors: List[float] = []
+            for c in remaining_colors:
+                embeddings_with_color_c = embeddings[vertices_with_color[c]]
+                embedding_repeated = embeddings[u].unsqueeze(0).repeat(embeddings_with_color_c.shape[0], 1)
+                distances = torch.norm(embedding_repeated - embeddings_with_color_c, dim=1)
+                distances_from_remaining_colors.append(torch.max(distances).item())
+
+            #     print('color: ', c)
+            #     print('embeddings with color:', embeddings_with_color_c)
+            #     print('embedding_repeated:', embedding_repeated)
+            #     print('distances: ', distances)
+
+            # print('distances_from_remaining:', distances_from_remaining_colors)
+            best_remaining_color_index = np.argmin(distances_from_remaining_colors)
+            selected_color = remaining_colors[best_remaining_color_index]
+
+        elif remaining_colors_len == 1:
+            selected_color = remaining_colors[0]
+
+        else: # remaining_colors_len == 0
+            selected_color = n_used_colors
+            n_used_colors += 1
+            vertices_with_color.append([])
+
+        colors[u] = selected_color
+        vertices_with_color[selected_color].append(u)
+
+        # print('selected_color: ', selected_color)
+        # print('coloring: ', colors)
+    
+    for i in range(graph.n_vertices):
+        if i not in colors: # isolated nodes are never visited
+            colors[i] = 0
+
     return [colors[i] for i in range(graph.n_vertices)]
 
 

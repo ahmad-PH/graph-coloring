@@ -41,10 +41,18 @@ if mode == "single_run":
     # graph = Graph.load('../data/singular/new/ca-HepTh.graph')
     # graph = Graph.from_mtx_file('../data/singular/new/rgg_n_2_17_s0.mtx')
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
+    # graph, n_clusters = slf_hard, 3
     # graph, n_clusters = generate_queens_graph(5,5), 5
+<<<<<<< HEAD
     # graph, n_clusters = generate_queens_graph(7,7), 7
     # graph, n_clusters = generate_queens_graph(13,13), 13
     graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
+=======
+    # graph, n_clusters = generate_queens_graph(6,6), 7
+    # graph, n_clusters = generate_queens_graph(7,7), 7
+    graph, n_clusters = generate_queens_graph(13,13), 13
+    # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
+>>>>>>> guided_slf
     # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
 
     # graph = Graph.load('../data/singular/ws_1000')
@@ -151,6 +159,7 @@ elif mode == "dataset_run":
     embedding_dim = 10
 
     # dataset = [
+<<<<<<< HEAD
     #     (graph1, 3),
     #     (graph2, 2),
     #     (graph3, 3),
@@ -175,6 +184,9 @@ elif mode == "dataset_run":
     #     (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
     #     # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
     #     # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
+=======
+    #     (generate_queens_graph(7, 7), 7)
+>>>>>>> guided_slf
     # ]
 
     # dataset = [
@@ -204,10 +216,10 @@ elif mode == "dataset_run":
                 _ , results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
                 results_list.append(results)
             
-            violation_ratio_list = np.array([result.violation_ratio for result in results_list])
+            # violation_ratio_list = np.array([result.violation_ratio for result in results_list])
             n_used_colors_list = np.array([result.n_used_colors for result in results_list])
 
-            print('violation_ratio: {}'.format(np.mean(violation_ratio_list)), file=out)
+            # print('violation_ratio: {}'.format(np.mean(violation_ratio_list)), file=out)
             min_used_colors = np.min(n_used_colors_list)
             ratio_of_good_runs = np.mean(n_used_colors_list == min_used_colors)
             print('min used colors: {}, ratio of good runs: {}'.format(min_used_colors, ratio_of_good_runs), file=out)
@@ -215,14 +227,14 @@ elif mode == "dataset_run":
             stddev_used_colors = np.std(n_used_colors_list)
             print('n_used stats: {}, {}'.format( mean_used_colors, stddev_used_colors), file=out)
             print('n_used: {}'.format(n_used_colors_list), file=out)
-            summary.append([min_used_colors, ratio_of_good_runs, mean_used_colors, stddev_used_colors, np.mean(violation_ratio_list)])
+            # summary.append([min_used_colors, ratio_of_good_runs, mean_used_colors, stddev_used_colors, np.mean(violation_ratio_list)])
+            summary.append([min_used_colors, ratio_of_good_runs, mean_used_colors, stddev_used_colors])
             print('\n\n', file=out)
             out.flush()
 
-            print('success')
-
         print('summary:', file=out)
         for item in summary:
-            print('{:.1f}, {:.1f},  {:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], item[2], item[3], 100 * item[4]), file=out)
+            print('{:.1f}, {:.1f},  {:.1f}, {:.2f}'.format(item[0], item[1], item[2], item[3]), file=out)
+            # print('{:.1f}, {:.1f},  {:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], item[2], item[3], 100 * item[4]), file=out)
         
         
