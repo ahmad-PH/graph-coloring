@@ -1,5 +1,6 @@
 from graph import Graph
 import itertools
+import networkx as nx
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
 
 def greedy_coloring_number(graph, strategy):
@@ -70,7 +71,12 @@ def generate_queens_graph(m, n):
 
 
     return Graph(adj_list, 'q{}_{}'.format(m, n))
-            
+
+def generate_erdos_renyi_graph(n_vertices, p):
+    return Graph.from_networkx_graph(nx.erdos_renyi_graph(n_vertices, p))
+
+def generate_watts_strogatz_graph(n_vertices, k, beta):
+    return Graph.from_networkx_graph(nx.watts_strogatz_graph(n_vertices, k, beta))
 
 def sort_graph_adj_list(adj_list):
     for neighborhood in adj_list:
