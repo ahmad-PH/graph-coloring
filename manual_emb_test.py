@@ -43,16 +43,10 @@ if mode == "single_run":
     # graph = Graph.from_mtx_file('../data/singular/new/kron_g500-logn16.mtx')
     # graph, n_clusters = slf_hard, 3
     # graph, n_clusters = generate_queens_graph(5,5), 5
-<<<<<<< HEAD
-    # graph, n_clusters = generate_queens_graph(7,7), 7
-    # graph, n_clusters = generate_queens_graph(13,13), 13
-    graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
-=======
     # graph, n_clusters = generate_queens_graph(6,6), 7
     # graph, n_clusters = generate_queens_graph(7,7), 7
     graph, n_clusters = generate_queens_graph(13,13), 13
     # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
->>>>>>> guided_slf
     # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
 
     # graph = Graph.load('../data/singular/ws_1000')
@@ -159,7 +153,6 @@ elif mode == "dataset_run":
     embedding_dim = 10
 
     # dataset = [
-<<<<<<< HEAD
     #     (graph1, 3),
     #     (graph2, 2),
     #     (graph3, 3),
@@ -184,9 +177,6 @@ elif mode == "dataset_run":
     #     (Graph.load('../data/singular/er_100').set_name('er_100'), 18), # DSATUR
     #     # (Graph.load('../data/singular/er_1000').set_name('er_1000'), 114), # DSATUR 
     #     # (Graph.load('../data/singular/er_10000').set_name('er_10000'), -1),
-=======
-    #     (generate_queens_graph(7, 7), 7)
->>>>>>> guided_slf
     # ]
 
     # dataset = [
