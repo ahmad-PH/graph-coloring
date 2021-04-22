@@ -164,24 +164,19 @@ def reinitialize_embeddings(embeddings, loss_function, ratio = 0.1, n_candidates
 
 from networkx.algorithms.coloring import strategy_saturation_largest_first 
 
-def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
-    color_embeddings = torch.empty(graph.n_vertices, embeddings.size()[1], requires_grad=False, device=embeddings.get_device())
+def colorize_embedding_guided_slf_mean(embeddings: torch.Tensor, graph: Graph):
+    device = "cuda:{}".format(embeddings.get_device()) if embeddings.get_device() != -1 else "cpu"
+    color_embeddings = torch.empty(graph.n_vertices, embeddings.size()[1], requires_grad=False, device=device)
     colors : Dict[int, int] = {}
     vertices_with_color: List[List[int]] = []
     n_used_colors = 0
 
-    # print('embeddings:', embeddings)
-
     node_order = strategy_saturation_largest_first(graph.get_nx_graph(), colors)
     for u in node_order:
-        # print('\n\nvisiting node {}'.format(u))
 
         neighborhood_colors = {colors[v] for v in graph.adj_list[u] if v in colors}
         remaining_colors = list(set(range(n_used_colors)).difference(neighborhood_colors))
         remaining_colors_len = len(remaining_colors)
-
-        # print('neighborhood colors: ', neighborhood_colors)
-        # print('remaining colors:', remaining_colors)
 
         if remaining_colors_len > 1:
             embedding_repeated = embeddings[u].unsqueeze(0).repeat(remaining_colors_len, 1)
@@ -189,13 +184,6 @@ def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
             distances = torch.norm(embedding_repeated - remaining_color_embeddings, dim=1)
             closest_embedding = int(torch.argmin(distances).data)
             selected_color = remaining_colors[closest_embedding]
-
-            # print('len > 1')
-            # print('embedding_repeated:', embedding_repeated)
-            # print('remaining_color_embeddings:', remaining_color_embeddings)
-            # print('distances:', distances)
-            # print('closest:', closest_embedding)
-            # print('selected_color:', selected_color)
 
         elif remaining_colors_len == 1:
             selected_color = remaining_colors[0]
@@ -209,9 +197,81 @@ def colorize_embedding_guided_slf(embeddings: torch.Tensor, graph: Graph):
         vertices_with_color[selected_color].append(u)
         color_embeddings[selected_color] = torch.mean(embeddings[vertices_with_color[selected_color]], dim=0)
 
-        # print('coloring: ', colors)
-        # print('vertices of each color:', vertices_with_color)
-        # print('updated color embedding:', color_embeddings[selected_color])
-        # print('n_used_colors:', n_used_colors)
-    
+    for i in range(graph.n_vertices):
+        if i not in colors: # isolated nodes are never visited
+            colors[i] = 0
+
     return [colors[i] for i in range(graph.n_vertices)]
+
+
+def colorize_embedding_guided_slf_max(embeddings: torch.Tensor, graph: Graph):
+    device = "cuda:{}".format(embeddings.get_device()) if embeddings.get_device() != -1 else "cpu"
+    colors : Dict[int, int] = {}
+    vertices_with_color: List[List[int]] = []
+    n_used_colors = 0
+
+    node_order = strategy_saturation_largest_first(graph.get_nx_graph(), colors)
+    for u in node_order:
+
+        neighborhood_colors = {colors[v] for v in graph.adj_list[u] if v in colors}
+        remaining_colors = list(set(range(n_used_colors)).difference(neighborhood_colors))
+        remaining_colors_len = len(remaining_colors)
+
+        if remaining_colors_len > 1:
+            distances_from_remaining_colors: List[float] = []
+            for c in remaining_colors:
+                embeddings_with_color_c = embeddings[vertices_with_color[c]]
+                embedding_repeated = embeddings[u].unsqueeze(0).repeat(embeddings_with_color_c.shape[0], 1)
+                distances = torch.norm(embedding_repeated - embeddings_with_color_c, dim=1)
+                distances_from_remaining_colors.append(torch.max(distances).item())
+
+            best_remaining_color_index = np.argmin(distances_from_remaining_colors)
+            selected_color = remaining_colors[best_remaining_color_index]
+
+        elif remaining_colors_len == 1:
+            selected_color = remaining_colors[0]
+
+        else: # remaining_colors_len == 0
+            selected_color = n_used_colors
+            n_used_colors += 1
+            vertices_with_color.append([])
+
+        colors[u] = selected_color
+        vertices_with_color[selected_color].append(u)
+
+    for i in range(graph.n_vertices):
+        if i not in colors: # isolated nodes are never visited
+            colors[i] = 0
+
+    return [colors[i] for i in range(graph.n_vertices)]
+
+
+def calculate_similarity_matrix(graph: Graph, inverted_adj_matrix, device) -> torch.Tensor:
+    # =================== WARNING ========================
+    # when you change this code, you need to delete the .sim_matrix_registry directory
+    overlap_matrix = torch.zeros(graph.n_vertices, graph.n_vertices).to(device)
+    for i in range(graph.n_vertices):
+        for j in range(i + 1, graph.n_vertices):
+            n_i = set(graph.adj_list[i])
+            n_j = set(graph.adj_list[j])
+            overlap_matrix[i][j] = len(n_i.intersection(n_j)) / (len(n_i.union(n_j)) + 1e-8)
+
+        for j in range(0, i):
+            overlap_matrix[i][j] = overlap_matrix[j][i]
+
+        overlap_matrix[i][i] = 0 # nodes are not similar with themselves
+        overlap_matrix[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
+
+    global_overlap_matrix = torch.zeros_like(overlap_matrix)
+    n_terms = 1
+    beta = 0.9
+    for i in range(1, n_terms + 1):
+        global_overlap_matrix += (beta ** (i-1)) * torch.matrix_power(overlap_matrix, i)
+    
+    for i in range(graph.n_vertices):
+        global_overlap_matrix[i][i] = 0
+        global_overlap_matrix[i][graph.adj_list[i]] = 0 # suppress entries of neighbors
+
+    lambda_3 = 5.
+    similarity_matrix = inverted_adj_matrix + lambda_3 * global_overlap_matrix
+    return similarity_matrix

@@ -8,6 +8,7 @@ from networkx.algorithms.coloring.greedy_coloring import greedy_color
 from networkx.algorithms.clique import find_cliques, graph_clique_number
 from exact_coloring import find_k_coloring
 from manual_emb_utility import *
+from sim_matrix_registry import SimMatrixRegistry
 
 import torch
 import torch.nn as nn
@@ -45,31 +46,13 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         # print('type:', inverted_adj_matrix.dtype)
 
         sim_matrix_t1 = time.time()
-        overlap_matrix = torch.zeros(graph.n_vertices, graph.n_vertices).to(device)
-        for i in range(graph.n_vertices):
-            for j in range(i + 1, graph.n_vertices):
-                n_i = set(graph.adj_list[i])
-                n_j = set(graph.adj_list[j])
-                overlap_matrix[i][j] = len(n_i.intersection(n_j)) / (len(n_i.union(n_j)) + 1e-8)
-
-            for j in range(0, i):
-                overlap_matrix[i][j] = overlap_matrix[j][i]
-
-            overlap_matrix[i][i] = 0 # nodes are not similar with themselves
-            overlap_matrix[i][graph.adj_list[i]] = 0. # suppress entries of neighbors
-
-        global_overlap_matrix = torch.zeros_like(overlap_matrix)
-        n_terms = 1
-        beta = 0.9
-        for i in range(1, n_terms + 1):
-            global_overlap_matrix += (beta ** (i-1)) * torch.matrix_power(overlap_matrix, i)
-        
-        for i in range(graph.n_vertices):
-            global_overlap_matrix[i][i] = 0
-            global_overlap_matrix[i][graph.adj_list[i]] = 0 # suppress entries of neighbors
-
-        lambda_3 = 5.
-        similarity_matrix = inverted_adj_matrix + lambda_3 * global_overlap_matrix
+        registry = SimMatrixRegistry.get_instance()
+        similarity_matrix = registry.get_similarity_matrix(graph.name)
+        if similarity_matrix == None:
+            if verbose:
+                print('No existing similarity matrix detected for graph {}, creating one.'.format(graph.name))
+            similarity_matrix = calculate_similarity_matrix(graph, inverted_adj_matrix, device)
+            registry.register_similarity_matrix(similarity_matrix, graph.name)
         sim_matrix_t2 = time.time()
         
     optimizer = torch.optim.Adam([embeddings], lr=0.1)
@@ -85,20 +68,15 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
         # ======= A bunch of plots and logs: =======
 
-        # if i % 10 == 0 and verbose:
-            # plt.title('{}'.format(i))
+        if i % 10 == 0 and verbose:
+            plt.title('{}'.format(i))
             # plot_points(embeddings, annotate=True, c=classes_to_colors(proper_coloring))
-            # plt.savefig('images/{}'.format(i))
-            # plt.clf()
+            plot_points(embeddings, annotate=True)
+            plt.savefig('images/{}'.format(i))
+            plt.clf()
 
         if i % 10 == 0 and verbose:
-            kmeans = KMeans(n_clusters)
-            kmeans.fit(embeddings.detach().cpu().numpy())
-            cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
-
-            colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
-            colors = colors.detach().cpu().numpy()
-            colors = correct_coloring(colors, graph)
+            colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
             n_used_colors = len(set(colors))
             data.n_color_performance.append(n_used_colors)
 
@@ -109,7 +87,11 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         #         lambda emb: compute_neighborhood_losses(emb, adj_matrix), ratio=0.1)
 
         optimizer.zero_grad()
-        distances = compute_pairwise_distances(embeddings, embeddings)
+        
+        std, mean = torch.std_mean(embeddings, dim=0, keepdim=True)
+        embeddings_normalized = (embeddings - mean) / (std + 1e-8)
+
+        distances = compute_pairwise_distances(embeddings_normalized, embeddings_normalized)
 
         # with torch.no_grad():
         #     # similarity_matrix = (2 * -adj_matrix + 1) - torch.eye(graph.n_vertices).to(self.device)
@@ -117,7 +99,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
         #     similarity_matrix = similarity_matrix.float()
 
         # neighborhood_loss = - torch.sum(all_distances * adj_matrix.float() / torch.sum(adj_matrix, dim=1, keepdim=True))
-        neighborhood_loss = compute_neighborhood_losses(embeddings, adj_matrix, precomputed_distances=distances).sum()
+        neighborhood_loss = compute_neighborhood_losses(embeddings_normalized, adj_matrix, precomputed_distances=distances).sum()
 
         # original:
         # center = torch.mean(embeddings, dim=0)
@@ -148,6 +130,12 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     phase_1_t2 = time.time()
 
     # phase 2
+
+    # # slf code:
+    # coloring = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
+    # assert(is_proper_coloring(coloring, graph))
+    # results.n_used_colors = len(set(coloring))
+
     clustering_t1 = time.time()
     clustering_results = []
     for i in range(11):
@@ -200,20 +188,16 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     results.n_used_colors, results.violation_ratio, _, best_cluster_centers = clustering_results[best_clustering_index]
     clustering_t2 = time.time()
 
-    if verbose:
-        plot_points(embeddings, annotate=True)
-        plot_points(best_cluster_centers, c='orange')
-        plt.figure()
 
     sim_matrix_time = sim_matrix_t2 - sim_matrix_t1
     phase1_time = phase_1_t2 - phase_1_t1
-    clustering_time = clustering_t2 - clustering_t1
-    correction_time = correction_t2 - correction_t1
+    # clustering_time = clustering_t2 - clustering_t1
+    # correction_time = correction_t2 - correction_t1
 
     if verbose:
         print('sim_matrix time: ', sim_matrix_time)
         print('phase1 time: ', phase1_time)
-        print('clustering time: ', clustering_time)
-        print('correction time: ', correction_time)
+        # print('clustering time: ', clustering_time)
+        # print('correction time: ', correction_time)
 
     return embeddings, results

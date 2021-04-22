@@ -2,6 +2,7 @@ import networkx as nx
 from scipy.io import mmread, mminfo
 from typing import List, Union
 from io import TextIOBase, StringIO, IOBase
+import os
 
 from utility import adj_list_to_matrix
 
@@ -44,7 +45,8 @@ class Graph:
     def load(source: Union[str, TextIOBase]):
         if isinstance(source, str):
             with open(source, 'r') as f:
-                return Graph._load(f).set_name(source)
+                graph_name = os.path.splitext(os.path.basename(source))[0]
+                return Graph._load(f).set_name(graph_name)
         elif isinstance(source, TextIOBase):
             return Graph._load(source)
 

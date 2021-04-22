@@ -1,6 +1,7 @@
 import unittest
 import math
 from io import StringIO
+import os, shutil
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
@@ -15,7 +16,9 @@ from graph_utility import generate_kneser_graph, generate_queens_graph, sort_gra
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
 from exact_coloring import find_k_coloring
-from manual_emb_utility import correct_coloring, colorize_embedding_guided_slf
+from sim_matrix_registry import SimMatrixRegistry
+from manual_emb_utility import correct_coloring, colorize_embedding_guided_slf_mean, colorize_embedding_guided_slf_max
+from test_data_generator import generate_random_mapping
 
 graph1 = Graph([
     [1, 3],
@@ -488,18 +491,71 @@ class TestCorrectColoring(unittest.TestCase):
         corrected_coloring = correct_coloring(coloring, graph2)
         self.assertTrue(is_proper_coloring(corrected_coloring, graph2))
         
-
-class TestColorizeEmbeddingGuidedSlf(unittest.TestCase):
+class TestColorizeEmbeddingGuidedSlfMean(unittest.TestCase):
     def test_happy_scenario_1(self):
         embeddings = torch.tensor([[0.4963, 0.7682],
-        [0.0885, 0.1320],
-        [0.3074, 0.6341],
-        [0.4901, 0.8964],
-        [0.4556, 0.6323],
-        [0.3489, 0.4017],
-        [0.0223, 0.1689],
-        [0.2939, 0.5185]])
+            [0.0885, 0.1320],
+            [0.3074, 0.6341],
+            [0.4901, 0.8964],
+            [0.4556, 0.6323],
+            [0.3489, 0.4017],
+            [0.0223, 0.1689],
+            [0.2939, 0.5185]])
 
-        coloring = colorize_embedding_guided_slf(embeddings, slf_hard)
+        coloring = colorize_embedding_guided_slf_mean(embeddings, slf_hard)
         self.assertListEqual(coloring, [0, 1, 2, 2, 2, 2, 1, 0])
 
+
+class TestColorizeEmbeddingGuidedSlfMax(unittest.TestCase):
+    def test_happy_scenario_1(self):
+        embeddings = torch.tensor([[0.4963, 0.7682],
+            [0.0885, 0.1320],
+            [0.3074, 0.6341],
+            [0.4901, 0.8964],
+            [0.4556, 0.6323],
+            [0.3489, 0.4017],
+            [0.0223, 0.1689],
+            [0.2939, 0.5185]])
+
+        coloring = colorize_embedding_guided_slf_max(embeddings, slf_hard)
+        self.assertListEqual(coloring, [0, 1, 2, 2, 2, 0, 1, 3])
+
+class TestSimMatrixRegistry(unittest.TestCase):
+    def setUp(self):
+        self.registry = SimMatrixRegistry.get_instance()
+        os.mkdir('/tmp/test')
+        self.registry.working_dir_path = '/tmp/test'
+        self.dummy_tensor = torch.empty(10, 10).uniform_(0, 2)
+
+    def test_happy_scenario_1(self):
+        self.registry.register_similarity_matrix(self.dummy_tensor, 'test_mat')
+        new_dummy = self.registry.get_similarity_matrix('test_mat')
+        self.assertTrue(torch.all(self.dummy_tensor == new_dummy))
+
+    def test_doesnt_override_existing(self):
+        self.registry.register_similarity_matrix(self.dummy_tensor, 'test_mat')
+        with self.assertRaises(Exception):
+            self.registry.register_similarity_matrix(self.dummy_tensor, 'test_mat')
+
+    def test_non_existing(self):
+        self.assertEqual(self.registry.get_similarity_matrix('non_existing_name'), None)
+
+    def tearDown(self):
+        shutil.rmtree(self.registry.working_dir_path)
+
+
+
+class TestGenerateRandomMapping(unittest.TestCase):
+    def test_x(self):
+        np.random.seed(0)
+        for i in range(100):
+            n_vertices = np.random.randint(50, 100)
+            n_colors = np.random.randint(1, 50)
+            mapping = generate_random_mapping(n_vertices, n_colors)
+            
+            color_selected_n_times = [0] * n_colors
+            for c in mapping:
+                color_selected_n_times[c] += 1
+            for selected_n_times in color_selected_n_times:
+                self.assertGreater(selected_n_times, 0)
+            
