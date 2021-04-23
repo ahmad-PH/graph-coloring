@@ -546,7 +546,7 @@ class TestSimMatrixRegistry(unittest.TestCase):
 
 
 class TestGenerateRandomMapping(unittest.TestCase):
-    def test_x(self):
+    def test_all_colors_selected(self):
         np.random.seed(0)
         for i in range(100):
             n_vertices = np.random.randint(50, 100)
