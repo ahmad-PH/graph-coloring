@@ -98,5 +98,8 @@ class Graph:
                 G.add_edge(v1, v2)
         return G
 
+    def get_avg_degree(self):
+        return self.n_edges * 2 / self.n_vertices
+
     def __str__(self):
         return 'graph: ' + str(self.adj_list)
