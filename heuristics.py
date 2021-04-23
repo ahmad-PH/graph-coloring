@@ -4,6 +4,7 @@ import numpy as np
 import heapq
 from networkx.algorithms.coloring import strategy_saturation_largest_first 
 import itertools
+from typing import List, Dict
 
 # def slf_heuristic(adj_list):
     # n_vertices = len(adj_list)
@@ -29,9 +30,9 @@ import itertools
 
     # return ordering
 
-def slf_heuristic(adj_list):
+def slf_heuristic(adj_list) -> List[int]:
     G = Graph(adj_list).get_nx_graph()
-    colors = {}
+    colors : Dict[int, int] = {}
     nodes = strategy_saturation_largest_first(G, colors)
     ordering = []
     for u in nodes:
