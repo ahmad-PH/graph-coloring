@@ -11,11 +11,11 @@ from graph import Graph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMAWithCorrection, LinearScheduler
+from utility import EWMAWithCorrection, LinearScheduler, tensor_correlation
 from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
-from exact_coloring import find_k_coloring
+from exact_coloring import find_k_coloring, find_chromatic_number
 from sim_matrix_registry import SimMatrixRegistry
 from manual_emb_utility import correct_coloring, colorize_embedding_guided_slf_mean, colorize_embedding_guided_slf_max
 from test_data_generator import generate_random_mapping
@@ -477,6 +477,13 @@ class TestFindKColoring(unittest.TestCase):
         self.assertEqual(n_used, 3)
 
 
+class TestFindChromaticNumber(unittest.TestCase):
+    def test_slf_hard(self):
+        self.assertEqual(find_chromatic_number(slf_hard), 3)
+
+    def test_q5_5(self):
+        self.assertEqual(find_chromatic_number(generate_queens_graph(5, 5)), 5)
+
 class TestLinearScheduler(unittest.TestCase):
     def test_happy_scenario(self):
         scheduler = LinearScheduler(10, 12, 2)
@@ -559,3 +566,14 @@ class TestGenerateRandomMapping(unittest.TestCase):
             for selected_n_times in color_selected_n_times:
                 self.assertGreater(selected_n_times, 0)
             
+
+class TestTensorCorrelation(unittest.TestCase):
+    def test_self_correlation(self):
+        torch.manual_seed(0)
+        t1 = torch.normal(0., 0.5, (100,))
+        self.assertGreater(tensor_correlation(t1, t1), 0.98)
+
+    def test_no_correlation(self):
+        t1 = torch.tensor([0., 1., -1.])
+        t2 = torch.tensor([5., 5., 5.])
+        self.assertEqual(tensor_correlation(t1, t2), 0.)

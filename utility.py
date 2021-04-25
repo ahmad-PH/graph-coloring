@@ -1,6 +1,7 @@
 import math
 import heapq
 import numpy as np
+import torch
 
 def n_combinations(n, k):
     if n < k:
@@ -78,6 +79,16 @@ class DataDump:
 
     def __repr__(self):
         return self.data.__repr__()
+
+
+def tensor_correlation(t1: torch.Tensor, t2: torch.Tensor) -> float:
+    if t1.shape != t2.shape:
+        raise ValueError("t1 and t2 must have the same shape")
+
+    s1, u1 = torch.std_mean(t1)
+    s2, u2 = torch.std_mean(t2)
+
+    return (torch.mean((t1 - u1) * (t2 - u2)) / (s1 * s2 + 1e-10)).item()
 
 
 # class ComparableContainer:
