@@ -227,4 +227,3 @@ elif mode == "dataset_run":
             print('{:.1f}, {:.1f},  {:.1f}, {:.2f}'.format(item[0], item[1], item[2], item[3]), file=out)
             # print('{:.1f}, {:.1f},  {:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], item[2], item[3], 100 * item[4]), file=out)
         
-        
