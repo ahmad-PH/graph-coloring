@@ -91,6 +91,9 @@ def tensor_correlation(t1: torch.Tensor, t2: torch.Tensor) -> float:
     return (torch.mean((t1 - u1) * (t2 - u2)) / (s1 * s2 + 1e-10)).item()
 
 
+def fastest_available_device():
+    return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 # class ComparableContainer:
 #     def __init__(self, item, key):
 #         self.item = item
