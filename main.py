@@ -1,4 +1,3 @@
-# imports from standard python libraries
 import numpy as np
 import networkx as nx
 import torch
@@ -7,8 +6,8 @@ import torch.nn.functional as F
 import os
 from typing import *
 from matplotlib import pyplot as plt
+import sys
 
-# imports from local files
 from graph import Graph
 from heuristics import *
 from test import *
@@ -20,6 +19,7 @@ from networkx.algorithms.coloring.greedy_coloring import greedy_color
 from graph_dataset import GraphDataset, GraphDatasetEager
 from dataset_generators import generate_erdos_renyi, generate_watts_strogatz
 from graph_utility import generate_kneser_graph, generate_queens_graph
+from globals import data
 
 from colorizer_8_pointer_netw import GraphColorizer
 
@@ -27,76 +27,47 @@ mode = "single_run"
 # mode = "dataset_run"
 
 def test_on_single_graph():
-    # graph = Graph(bipartite_10_vertices)
 
     # graph = generate_queens_graph(5,5)
-    # graph = generate_queens_graph(6,6)
+    graph = generate_queens_graph(6,6)
     # graph = generate_queens_graph(7,7)
-    graph = generate_queens_graph(8,8)
+    # graph = generate_queens_graph(8,8)
     # graph = generate_queens_graph(8,12)
     # graph = generate_queens_graph(11,11)
     # graph = generate_queens_graph(13,13)
-
     # graph = GraphDatasetEager('../data/erdos_renyi_100/train')[0]
 
-    # graph = Graph.from_networkx_graph(nx.erdos_renyi_graph(100, 0.5))
+    # ================== Generate Perfect Clustering: ==================
+    # from exact_coloring import find_k_coloring
+    # from test_data_generator import generate_clustered_embeddings
+    # from manual_emb_utility import plot_points
+    # optimal_coloring = find_k_coloring(graph, 7)
+    # optimal_clustering = generate_clustered_embeddings(10, graph.n_vertices, 7, optimal_coloring, 2.)
+    # torch.save(optimal_clustering, 'optimalclustering_q7_7.pt')
+    # # print('solution:', [(i, v) for i, v in enumerate(optimal_coloring)])
+    # # plot_points(optimal_clustering, annotate=True)
+    # # plt.title('embeddings')
+    # # plt.show()
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # colorizer = GraphColorizer(loss_type="reinforce", device=device)
-    colorizer = GraphColorizer(loss_type="reinforce", graph=graph, device=device)
+    embeddings = torch.load('optimalclustering_q7_7.pt')
+
+    colorizer = GraphColorizer(graph, embeddings, device=fastest_available_device())
     optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.0001)
-
-    color = greedy_color(graph.get_nx_graph(), strategy="DSATUR")
 
     baseline = EWMAWithCorrection(0.95)
     losses = []
     baselines = []
-    best_answer = float('+inf')
-    best_answer_epoch = -1
-    n_used_list = []
+    n_color_performance = []
 
     for i in range(200):
         print("\n\nepoch: {}".format(i))
+
         optimizer.zero_grad()
         coloring, loss = colorizer.forward(graph, baseline.get_value())
         n_used_colors = len(set(coloring))
-        n_used_list.append(n_used_colors)
+        n_color_performance.append(n_used_colors)
         baseline.update(n_used_colors)
         loss.backward()
-
-        # from multi_head_attention import MultiHeadAttention
-
-        # def print_module_info(name, module):
-        #     if isinstance(module, nn.ModuleList):
-        #         for child in module:
-        #             print_module_info(name, child)
-        #         return 
-
-        #     if isinstance(module, MultiHeadAttention) and module.pointer_mode == False:
-        #         # plt.title('{} {}: data'.format(name, module))
-        #         # plt.hist(module.out.flatten().detach().cpu().numpy())
-        #         # plt.figure()
-
-        #         # plt.title('{} {}: grad'.format(name, module))
-        #         # plt.hist(module.out.grad.flatten().detach().cpu().numpy())
-        #         # plt.figure()
-        #         print('{}: {}'.format(name, module))
-        #         # print('data:', module.out.shape)
-        #         print('grad: ', module.out.grad.mean())
-
-        #     if name == "attn_combiner":
-        #         print('{}: {}'.format(name, module))
-        #         print(module[1])
-
-        # for name, module in colorizer.named_children():
-        #     print_module_info(name, module)
-        # plt.show()
- 
-
-        # print('embedding grads: ', torch.mean(colorizer.embeddings.grad), torch.std(colorizer.embeddings.grad))
-        # for j in range(colorizer.n_attn_layers):
-        #     print('attn grad:', torch.mean(colorizer.neighb_attns[j].W.grad), torch.std(colorizer.neighb_attns[j].W.grad))
-        # print('classifier grad:', torch.mean(colorizer.color_classifier.fc1.weight.grad), torch.std(colorizer.color_classifier.fc1.weight.grad))
 
         optimizer.step()
 
@@ -104,34 +75,28 @@ def test_on_single_graph():
         print('n_used: {}, new_corrected_baseline: {}'.format(n_used_colors, baseline.get_value()))
         losses.append(loss.item())
         baselines.append(baseline.get_value())
-        if n_used_colors < best_answer:
-            best_answer = n_used_colors
-            best_answer_epoch = i
 
-    print('best answer is {} and first happened at epoch {}'.format(best_answer, best_answer_epoch))
-    print('approx answer:', len(set(color.values()))) 
+    # greedy_coloring = greedy_color(graph.get_nx_graph(), strategy="DSATUR")
+    # print('greedy answer:', len(set(greedy_coloring.values()))) 
     
-    from globals import data
     print('appending:', best_answer)
     data.results.append(best_answer)
-    # print(best_answer, file=data.file_writer)
-    # file_writer.flush()
 
-    # plt.title('losses')
-    # plt.plot(losses)
-    # plt.figure()
-    # plt.title('n_used')
-    # plt.plot(n_used_list)
-    # plt.plot(baselines)
-    # plt.show()
+    plt.title('losses')
+    plt.plot(losses)
+    plt.figure()
+    plt.title('n_used')
+    plt.plot(n_color_performance, label='n_used')
+    plt.plot(baselines, label='baseline')
+    plt.legend()
+    plt.show()
 
 
 def test_on_dataset():
     # torch.manual_seed(1) # produces nan
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ds = GraphDatasetEager('../data/erdos_renyi_100/train')
-    colorizer = GraphColorizer(loss_type="reinforce", device=device)
+    colorizer = GraphColorizer(loss_type="reinforce", device=fastest_available_device())
     optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.0001) #0.0005)
 
     approx_answers = []
@@ -205,7 +170,6 @@ def test_on_dataset():
         plt.title('{}th graph n_used'.format(i))
         plt.plot(n_used_list[i])
         plt.show()
-
 
 
 if __name__=="__main__":

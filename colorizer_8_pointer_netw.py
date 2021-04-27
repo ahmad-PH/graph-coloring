@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 from utility import *
 
 class GraphColorizer(nn.Module):
-    def __init__(self, graph: Graph = None, device="cpu", loss_type="reinforce"):
+    def __init__(self, graph: Graph, embeddings, device="cpu", loss_type="reinforce"):
         super().__init__()
         self.embedding_size = 512
         self.n_possible_colors = 256
@@ -49,14 +49,15 @@ class GraphColorizer(nn.Module):
         self.new_color_embedding = nn.Parameter(torch.normal(0, 0.1, (self.embedding_size,)))
 
         # self.embeddings = nn.Parameter(torch.normal(0, .1, (graph.n_vertices, self.embedding_size)))
+        self.embeddings = embeddings
         self.color_embeddings = nn.Parameter(torch.normal(0, 0.1, (self.n_possible_colors + 1, self.embedding_size)))
 
         self.device = device
         self.to(device)
 
     def forward(self, graph: Graph, baseline=None):
-        embeddings = torch.normal(0, .1, (graph.n_vertices, self.embedding_size)).to(self.device)
-        # embeddings = self.embeddings
+        # embeddings = torch.normal(0, .1, (graph.n_vertices, self.embedding_size)).to(self.device)
+        embeddings = self.embeddings
 
         with torch.no_grad():
             adj_matrix = torch.tensor(adj_list_to_matrix(graph.adj_list), requires_grad=False).to(self.device) 
