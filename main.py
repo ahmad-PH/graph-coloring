@@ -20,8 +20,9 @@ from graph_dataset import GraphDataset, GraphDatasetEager
 from dataset_generators import generate_erdos_renyi, generate_watts_strogatz
 from graph_utility import generate_kneser_graph, generate_queens_graph
 from globals import data
+from manual_emb_utility import plot_points
 
-from colorizer_8_pointer_netw import GraphColorizer
+from colorizer_1_plain import GraphColorizer
 
 mode = "single_run"
 # mode = "dataset_run"
@@ -37,33 +38,38 @@ def test_on_single_graph():
     # graph = generate_queens_graph(13,13)
     # graph = GraphDatasetEager('../data/erdos_renyi_100/train')[0]
 
-    # ================== Generate Perfect Clustering: ==================
+    # ================== Generate Optimal Clustering: ==================
     # from exact_coloring import find_k_coloring
     # from test_data_generator import generate_clustered_embeddings
-    # from manual_emb_utility import plot_points
     # optimal_coloring = find_k_coloring(graph, 7)
+    # save_to_file(optimal_coloring, 'optimalcoloring.txt')
+
     # optimal_clustering = generate_clustered_embeddings(10, graph.n_vertices, 7, optimal_coloring, 2.)
-    # torch.save(optimal_clustering, 'optimalclustering_q7_7.pt')
-    # # print('solution:', [(i, v) for i, v in enumerate(optimal_coloring)])
-    # # plot_points(optimal_clustering, annotate=True)
-    # # plt.title('embeddings')
-    # # plt.show()
+    # torch.save(optimal_clustering, 'optimalclustering_q6_6.pt')
 
-    embeddings = torch.load('optimalclustering_q7_7.pt')
+    # print('solution:', [(i, v) for i, v in enumerate(optimal_coloring)])
+    # plot_points(optimal_clustering, annotate=True)
+    # plt.title('embeddings')
+    # plt.show()
+    # sys.exit(0)
 
-    colorizer = GraphColorizer(graph, embeddings, device=fastest_available_device())
-    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.0001)
+    embeddings = torch.load('optimalclustering_q6_6.pt', map_location=fastest_available_device())
+    data.optimal_coloring = load_from_file('optimalcoloring.txt')
 
-    baseline = EWMAWithCorrection(0.95)
+    colorizer = GraphColorizer(embeddings.shape[1], device=fastest_available_device())
+    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.01)
+
+    baseline = EWMAWithCorrection(0.9)
     losses = []
     baselines = []
     n_color_performance = []
 
-    for i in range(200):
+    for i in range(100):
         print("\n\nepoch: {}".format(i))
 
         optimizer.zero_grad()
-        coloring, loss = colorizer.forward(graph, baseline.get_value())
+        coloring, loss = colorizer.forward(graph, embeddings, baseline.get_value())
+        print('props', coloring_properties(coloring, graph))
         n_used_colors = len(set(coloring))
         n_color_performance.append(n_used_colors)
         baseline.update(n_used_colors)
@@ -79,7 +85,7 @@ def test_on_single_graph():
     # greedy_coloring = greedy_color(graph.get_nx_graph(), strategy="DSATUR")
     # print('greedy answer:', len(set(greedy_coloring.values()))) 
     
-    print('appending:', best_answer)
+    best_answer = np.min(n_color_performance)
     data.results.append(best_answer)
 
     plt.title('losses')
