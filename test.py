@@ -5,13 +5,13 @@ import os, shutil
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from colorizer_1_plain import ColorClassifier
+from colorizer_2_distance import ColorClassifier
 from colorizer_8_pointer_netw import GraphColorizer as PointerColorizer
 from graph import Graph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMAWithCorrection, LinearScheduler, tensor_correlation
+from utility import EWMAWithCorrection, LinearScheduler, tensor_correlation, save_to_file, load_from_file
 from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
@@ -365,42 +365,6 @@ class TestSLFHeuristic(unittest.TestCase):
         self.assertListEqual(ordering[:4], [0,1,2,3])
 
 
-class TestPointerColorizer(unittest.TestCase):
-    def setUp(self):
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.colorizer = PointerColorizer(device=self.device)
-        self.n_possible_colors = self.colorizer.n_possible_colors
-
-    def test_full_mask(self):
-        mask = self.colorizer._get_pointer_mask(0, []).squeeze(0)
-        for i in range(0, self.n_possible_colors):
-            self.assertEqual(mask[i], True)
-        self.assertEqual(mask[self.n_possible_colors], False)
-
-    def test_some_used_no_adj(self):
-        mask = self.colorizer._get_pointer_mask(3, []).squeeze(0)
-        for i in range(0, 3):
-            self.assertEqual(mask[i], False)
-        for i in range(4, self.n_possible_colors):
-            self.assertEqual(mask[i], True)
-        self.assertEqual(mask[self.n_possible_colors], False)
-
-    def test_some_used_some_adj(self):
-        mask = self.colorizer._get_pointer_mask(4, [0,2]).squeeze(0)
-        self.assertEqual(mask[0], True)
-        self.assertEqual(mask[1], False)
-        self.assertEqual(mask[2], True)
-        self.assertEqual(mask[3], False)
-        for i in range(4, self.n_possible_colors):
-            self.assertEqual(mask[i], True)
-        self.assertEqual(mask[self.n_possible_colors], False)
-
-    def test_all_used(self):
-        mask = self.colorizer._get_pointer_mask(self.n_possible_colors, []).squeeze(0)
-        for i in range(0, self.n_possible_colors + 1):
-            self.assertEqual(mask[i], False)
-
-
 class TestColoringCheckers(unittest.TestCase):
     def test_is_proper_coloring_true(self):
         self.assertTrue(is_proper_coloring([0, 1, 1, 0, 1], graph2))
@@ -577,3 +541,12 @@ class TestTensorCorrelation(unittest.TestCase):
         t1 = torch.tensor([0., 1., -1.])
         t2 = torch.tensor([5., 5., 5.])
         self.assertEqual(tensor_correlation(t1, t2), 0.)
+
+
+class TestSaveLoadFromFile(unittest.TestCase):
+    def test_happy_scenario_list(self):
+        list_to_save = [1, 2, 5]
+        save_to_file(list_to_save, '/tmp/test.txt')
+        loaded_list = load_from_file('/tmp/test.txt')
+        self.assertListEqual(list_to_save, loaded_list)
+

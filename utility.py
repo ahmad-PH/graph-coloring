@@ -90,9 +90,21 @@ def tensor_correlation(t1: torch.Tensor, t2: torch.Tensor) -> float:
 
     return (torch.mean((t1 - u1) * (t2 - u2)) / (s1 * s2 + 1e-10)).item()
 
-
 def fastest_available_device():
     return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+allowed_obj_types_for_persistance = [list]
+
+def save_to_file(obj, filename):
+    if type(obj) not in allowed_obj_types_for_persistance:
+        raise ValueError("obj of type {} can't be persisted".format(type(obj)))
+
+    with open(filename, 'w') as f:
+        f.write(str(obj))
+
+def load_from_file(filename):
+    with open(filename, 'r') as f:
+        return eval('\n'.join(f.readlines()))
 
 # class ComparableContainer:
 #     def __init__(self, item, key):
