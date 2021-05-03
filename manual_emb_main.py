@@ -77,7 +77,7 @@ def learn_embeddings(graph, embedding_dim, n_clusters = None, verbose = False):
         #     plt.savefig('images/{}'.format(i))
         #     plt.clf()
 
-        if i % 10 == 0 and verbose:
+        if i % 10 == 0 and verbose and n_clusters != None:
             # colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
             kmeans = KMeans(n_clusters)
             kmeans.fit(embeddings.detach().cpu().numpy())
@@ -136,6 +136,9 @@ def learn_embeddings(graph, embedding_dim, n_clusters = None, verbose = False):
     # coloring = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
     # assert(is_proper_coloring(coloring, graph))
     # results.n_used_colors = len(set(coloring))
+
+    if n_clusters == None:
+        n_clusters = guess_best_n_clusters(embeddings, graph)
 
     clustering_t1 = time.time()
     clustering_results = []

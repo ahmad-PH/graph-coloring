@@ -2,7 +2,9 @@ from graph import Graph
 from utility import *
 from graph_utility import *
 from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 from typing import Mapping, List, Dict
+from heuristics import colorize_using_heuristic, slf_heuristic
 
 import torch
 import torch.nn as nn
@@ -275,3 +277,22 @@ def calculate_similarity_matrix(graph: Graph, inverted_adj_matrix, device) -> to
     lambda_3 = 5.
     similarity_matrix = inverted_adj_matrix + lambda_3 * global_overlap_matrix
     return similarity_matrix
+
+def guess_best_n_clusters(embeddings: torch.Tensor, graph: Graph) -> int:
+    _, n_clusters = colorize_using_heuristic(graph.adj_list, slf_heuristic)
+    current_n_colors_used = n_clusters 
+    previous_n_colors_used = float('+inf')
+
+    embeddings_numpy = embeddings.detach().cpu().numpy()
+    while current_n_colors_used < previous_n_colors_used:
+        n_clusters -= 1
+        previous_n_colors_used = current_n_colors_used
+
+        colors = KMeans(n_clusters).fit_predict(embeddings_numpy)
+        corrected_colors = correct_coloring(colors, graph)
+        current_n_colors_used = len(set(corrected_colors))
+
+        print('n_clusters: {}, current_n_colors: {}, previous: {}'.format(n_clusters, current_n_colors_used, previous_n_colors_used))
+    
+    print('returning: ', n_clusters + 1)
+    return n_clusters + 1
