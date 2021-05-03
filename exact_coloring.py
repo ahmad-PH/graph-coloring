@@ -2,6 +2,7 @@ from graph import Graph
 from heuristics import slf_heuristic, colorize_using_heuristic
 import numpy as np
 import torch
+import signal
 
 def find_k_coloring(graph: Graph, k, random_ordering=False):
     if k <= 0:
@@ -55,12 +56,36 @@ def find_chromatic_number(graph: Graph, verbose=False):
 
     k = n_colors_used - 1
     while True:
-        if verbose: print(f'k: {k}')
+        if verbose: print(f'trying to find a {k} coloring.')
         k_coloring = find_k_coloring(graph, k)
         if k_coloring == None:
             return k + 1
         else:
             k -= 1
+
+def find_chromatic_number_upper_bound(graph: Graph, patience_seconds: int = 5, verbose=False):
+    def time_out_handler(signum, frame):
+        raise TimeoutError()
+    signal.signal(signal.SIGALRM, time_out_handler)
+
+    _, n_colors_used = colorize_using_heuristic(graph.adj_list, slf_heuristic)
+    if verbose: print('color from heuristic: ', n_colors_used)
+
+    k = n_colors_used - 1
+    while True:
+        if verbose: print(f'trying to find a {k} coloring.')
+        signal.alarm(patience_seconds)
+        try:
+            k_coloring = find_k_coloring(graph, k)
+            signal.alarm(0) # cancel the alarm
+            if k_coloring == None:
+                return k + 1
+            else:
+                k -= 1
+        except TimeoutError:
+            if verbose: print('timed out at k={}, returning {}'.format(k, k+1))
+            return k + 1
+
 
 
 # from graph_utility import *
@@ -73,42 +98,42 @@ def find_chromatic_number(graph: Graph, verbose=False):
 
 #     # ============================ create and save =============================
 
-#     # graph = generate_erdos_renyi_graph(50, 0.3)
-#     # graph.save("test.graph"); sys.exit(0)
+    # # graph = generate_erdos_renyi_graph(50, 0.3)
+    # # graph.save("test.graph"); sys.exit(0)
 
-#     graph = Graph.load("test.graph")
-#     # chi = find_chromatic_number(graph)
-#     # print(chi); sys.exit(0)
+    # graph = Graph.load("test.graph")
+    # # chi = find_chromatic_number(graph)
+    # # print(chi); sys.exit(0)
 
-#     similarity_matrix = torch.zeros(graph.n_vertices, graph.n_vertices)
+    # similarity_matrix = torch.zeros(graph.n_vertices, graph.n_vertices)
 
-#     colorize_n_times = 10
-#     for coloring_counter in range(colorize_n_times):
-#         print(coloring_counter)
-#         coloring = find_k_coloring(graph, 6, random_ordering=True)
-#         clustering_matrix = torch.zeros(graph.n_vertices, graph.n_vertices)
+    # colorize_n_times = 10
+    # for coloring_counter in range(colorize_n_times):
+    #     print(coloring_counter)
+    #     coloring = find_k_coloring(graph, 6, random_ordering=True)
+    #     clustering_matrix = torch.zeros(graph.n_vertices, graph.n_vertices)
 
-#         for i in range(graph.n_vertices):
-#             for j in range(graph.n_vertices):
-#                 if i == j: continue
-#                 clustering_matrix[i][j] = 1 if (coloring[i] == coloring[j]) else 0
+    #     for i in range(graph.n_vertices):
+    #         for j in range(graph.n_vertices):
+    #             if i == j: continue
+    #             clustering_matrix[i][j] = 1 if (coloring[i] == coloring[j]) else 0
                 
-#         print('coloring:')
-#         print([(i,v) for i,v in enumerate(coloring)])
-#         print('clust matrxi:')
-#         print(clustering_matrix)
+    #     print('coloring:')
+    #     print([(i,v) for i,v in enumerate(coloring)])
+    #     print('clust matrxi:')
+    #     print(clustering_matrix)
 
-#         similarity_matrix += clustering_matrix
-#         print('new sim:')
-#         print(similarity_matrix)
+    #     similarity_matrix += clustering_matrix
+    #     print('new sim:')
+    #     print(similarity_matrix)
 
-#     similarity_matrix /= colorize_n_times
-#     print('final sim:')
-#     print(similarity_matrix)
+    # similarity_matrix /= colorize_n_times
+    # print('final sim:')
+    # print(similarity_matrix)
 
-#     torch.save(similarity_matrix, 'sim_mat.pt')
+    # torch.save(similarity_matrix, 'sim_mat.pt')
 
-#     sys.exit(0)
+    # sys.exit(0)
 
 #     # ============================ load and experiment =============================
 
