@@ -292,7 +292,4 @@ def guess_best_n_clusters(embeddings: torch.Tensor, graph: Graph) -> int:
         corrected_colors = correct_coloring(colors, graph)
         current_n_colors_used = len(set(corrected_colors))
 
-        print('n_clusters: {}, current_n_colors: {}, previous: {}'.format(n_clusters, current_n_colors_used, previous_n_colors_used))
-    
-    print('returning: ', n_clusters + 1)
     return n_clusters + 1
