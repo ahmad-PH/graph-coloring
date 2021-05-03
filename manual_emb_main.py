@@ -81,10 +81,7 @@ def learn_embeddings(graph, embedding_dim, n_clusters = None, verbose = False):
             # colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
             kmeans = KMeans(n_clusters)
             kmeans.fit(embeddings.detach().cpu().numpy())
-            cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
-            colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
-            colors = colors.detach().cpu().numpy()
-
+            colors = kmeans.labels_
             n_used_colors = len(set(colors))
             data.n_color_performance.append(n_used_colors)
 
@@ -149,9 +146,7 @@ def learn_embeddings(graph, embedding_dim, n_clusters = None, verbose = False):
             kmeans = KMeans(n_clusters, init='random')
         kmeans.fit(embeddings.detach().cpu().numpy())
         cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
-
-        colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
-        colors = colors.detach().cpu().numpy()
+        colors = kmeans.labels_
         properties = coloring_properties(colors, graph)
         violation_ratio = properties[2]
 
