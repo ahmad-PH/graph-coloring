@@ -11,9 +11,9 @@ from matplotlib import pyplot as plt
 from utility import *
 
 class GraphColorizer(nn.Module):
-    def __init__(self, graph: Graph, embeddings, device="cpu", loss_type="reinforce"):
+    def __init__(self, graph: Graph, embedding_size, device="cpu", loss_type="reinforce"):
         super().__init__()
-        self.embedding_size = 512
+        self.embedding_size = embedding_size
         self.n_possible_colors = 256
         self.loss_type = loss_type
 
@@ -36,8 +36,7 @@ class GraphColorizer(nn.Module):
 
         self.attn_combiner = nn.ModuleList([nn.Sequential(
                 nn.Linear(2*self.embedding_size, 2*self.embedding_size),
-                nn.ReLU(),
-                # nn.LeakyReLU(0.05),
+                nn.LeakyReLU(0.05),
                 nn.Linear(2*self.embedding_size, self.embedding_size)
             ) for _ in range(self.n_attn_layers)
         ])
@@ -49,29 +48,26 @@ class GraphColorizer(nn.Module):
         self.new_color_embedding = nn.Parameter(torch.normal(0, 0.1, (self.embedding_size,)))
 
         # self.embeddings = nn.Parameter(torch.normal(0, .1, (graph.n_vertices, self.embedding_size)))
-        self.embeddings = embeddings
         self.color_embeddings = nn.Parameter(torch.normal(0, 0.1, (self.n_possible_colors + 1, self.embedding_size)))
 
         self.device = device
         self.to(device)
 
-    def forward(self, graph: Graph, baseline=None):
-        # embeddings = torch.normal(0, .1, (graph.n_vertices, self.embedding_size)).to(self.device)
-        embeddings = self.embeddings
+    def forward(self, graph: Graph, embeddings: torch.Tensor, baseline=None):
 
         with torch.no_grad():
-            adj_matrix = torch.tensor(adj_list_to_matrix(graph.adj_list), requires_grad=False).to(self.device) 
+            adj_matrix = torch.tensor(graph.get_adj_matrix(), dtype=torch.float32, requires_grad=False).to(self.device) 
             inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix - torch.eye(graph.n_vertices).to(self.device)
 
         for i in range(self.n_attn_layers):
-            # neighbor_updates = F.relu(self.neighb_attns[i].forward(embeddings, adj_matrix))
-            # non_neighbor_updates = F.relu(self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix))
-            # concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
-            # embeddings = embeddings + self.attn_combiner[i].forward(concatenated) 
-            neighbor_updates = embeddings + self.neighb_attns[i].forward(embeddings, adj_matrix)
-            non_neighbor_updates = embeddings + self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix)
+            neighbor_updates = F.relu(self.neighb_attns[i].forward(embeddings, adj_matrix))
+            non_neighbor_updates = F.relu(self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix))
             concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
-            embeddings = embeddings + self.attn_combiner[i].forward(concatenated)
+            embeddings = embeddings + self.attn_combiner[i].forward(concatenated) 
+            # neighbor_updates = embeddings + self.neighb_attns[i].forward(embeddings, adj_matrix)
+            # non_neighbor_updates = embeddings + self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix)
+            # concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
+            # embeddings = embeddings + self.attn_combiner[i].forward(concatenated)
 
         nodes_with_color : List[List[int]] = [[] for _ in range(self.n_possible_colors)]
         color_embeddings : List[torch.Tensor] = [torch.zeros(self.embedding_size).to(self.device) for _ in range(self.n_possible_colors)]
@@ -110,7 +106,7 @@ class GraphColorizer(nn.Module):
             # print('emb shape: {}, graph emb shape: {}, context shape: {}'.format(embeddings[vertex].shape, graph_embedding.shape, context.shape))
             new_context = self.context_updater.forward(context, stacked_color_embeddings)
             # print('new context shape: ', new_context.shape)
-            mask = self._get_pointer_mask(n_used_colors, adjacent_colors)
+            mask = self._get_pointer_mask(n_used_colors, adjacent_colors) # TODO: not to remove the adjacnet colors and instead punish the netw
             # print('adj colors: {}, n_used: {}'.format(adjacent_colors, n_used_colors))
             # print('mask shape: {}, mask: {}'.format(mask.shape, mask))
             pointer_out = self.pointer_network.forward(new_context, stacked_color_embeddings, mask=mask)
@@ -132,7 +128,7 @@ class GraphColorizer(nn.Module):
 
             prob_part = pointer_out[raw_chosen_color]
             log_prob_part = torch.log(prob_part + 1e-8) - torch.log(torch.tensor(1e-8)) # TEST # [0, 18.42]
-            log_partial_prob += log_prob_part
+            log_partial_prob += log_prob_part # TODO: this is fishy, maybe it's better to store them and use torch.sum()
 
         if baseline is None: raise ValueError('baseline cannot be None if loss type is `reinforcement`.')
         # print('log_partial_prob: {}'.format(log_partial_prob))

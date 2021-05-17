@@ -12,7 +12,7 @@ class GraphDataset(Dataset):
         self.len = counter
         self.foldername = foldername
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> Graph:
         return Graph.load('{}/{}.graph'.format(self.foldername, i))
 
     def __len__(self):
@@ -26,5 +26,5 @@ class GraphDatasetEager(GraphDataset):
         super().__init__(foldername)
         self.graphs = [Graph.load('{}/{}.graph'.format(foldername, i)) for i in range(self.len)]
 
-    def __getitem__(self, i):
+    def __getitem__(self, i) -> Graph:
         return self.graphs[i]

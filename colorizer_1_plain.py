@@ -50,7 +50,7 @@ class GraphColorizer(nn.Module):
         self._assign_color(0, vertex_order[0], colors)
         n_used_colors = 1
         # log_partial_prob = 0.
-        loss = torch.tensor(0.)
+        loss = torch.tensor(0.).to(self.device)
 
         for vertex in vertex_order[1:]:
             adjacent_colors = self._get_adjacent_colors(vertex, graph, colors)
@@ -76,9 +76,9 @@ class GraphColorizer(nn.Module):
             loss_part = 1 - torch.log(classifier_out[data.optimal_coloring[vertex]] + 1e-10)
             loss += loss_part
 
-            print('optimal_sol: {}, probabilities: {}, loss: {} selected: {}'.format(data.optimal_coloring[vertex],
-                classifier_out.data, loss_part, raw_chosen_color))
-
+            # print('optimal_sol: {}, probabilities: {}, loss: {} selected: {}'.format(data.optimal_coloring[vertex],
+                # classifier_out.data, loss_part, raw_chosen_color))
+            
             # prob_part = classifier_out[raw_chosen_color]
             # log_prob_part = torch.log(prob_part + 1e-8) - torch.log(torch.tensor(1e-8)) # TEST # [0, 18.42]
             # log_partial_prob += log_prob_part

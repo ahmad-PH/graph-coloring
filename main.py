@@ -64,23 +64,24 @@ def test_on_single_graph():
     baselines = []
     n_color_performance = []
 
-    for i in range(100):
-        print("\n\nepoch: {}".format(i))
+    with torch.autograd.detect_anomaly():
+        for i in range(100):
+            print("\n\nepoch: {}".format(i))
 
-        optimizer.zero_grad()
-        coloring, loss = colorizer.forward(graph, embeddings, baseline.get_value())
-        print('props', coloring_properties(coloring, graph))
-        n_used_colors = len(set(coloring))
-        n_color_performance.append(n_used_colors)
-        baseline.update(n_used_colors)
-        loss.backward()
+            optimizer.zero_grad()
+            coloring, loss = colorizer.forward(graph, embeddings, baseline.get_value())
+            print('props', coloring_properties(coloring, graph))
+            n_used_colors = len(set(coloring))
+            n_color_performance.append(n_used_colors)
+            baseline.update(n_used_colors)
+            loss.backward()
 
-        optimizer.step()
+            optimizer.step()
 
-        print('loss:', loss.item())
-        print('n_used: {}, new_corrected_baseline: {}'.format(n_used_colors, baseline.get_value()))
-        losses.append(loss.item())
-        baselines.append(baseline.get_value())
+            print('loss:', loss.item())
+            print('n_used: {}, new_corrected_baseline: {}'.format(n_used_colors, baseline.get_value()))
+            losses.append(loss.item())
+            baselines.append(baseline.get_value())
 
     # greedy_coloring = greedy_color(graph.get_nx_graph(), strategy="DSATUR")
     # print('greedy answer:', len(set(greedy_coloring.values()))) 
