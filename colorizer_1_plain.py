@@ -77,7 +77,9 @@ class GraphColorizer(nn.Module):
             loss += loss_part
 
             # print('optimal_sol: {}, probabilities: {}, loss: {} selected: {}'.format(data.optimal_coloring[vertex],
-                # classifier_out.data, loss_part, raw_chosen_color))
+            #     classifier_out.data, loss_part, raw_chosen_color))
+            
+            # print('optimal sol: {}, selected: {}'.format(data.optimal_coloring[vertex], raw_chosen_color))
             
             # prob_part = classifier_out[raw_chosen_color]
             # log_prob_part = torch.log(prob_part + 1e-8) - torch.log(torch.tensor(1e-8)) # TEST # [0, 18.42]
