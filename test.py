@@ -443,10 +443,17 @@ class TestFindKColoring(unittest.TestCase):
 
 class TestFindChromaticNumber(unittest.TestCase):
     def test_slf_hard(self):
-        self.assertEqual(find_chromatic_number(slf_hard), 3)
+        chromatic_number, coloring = find_chromatic_number(slf_hard)
+        self.assertEqual(chromatic_number, 3)
+        self.assertEqual(len(set(coloring)), 3)
+        self.assertTrue(is_proper_coloring(coloring, slf_hard))
 
     def test_q5_5(self):
-        self.assertEqual(find_chromatic_number(generate_queens_graph(5, 5)), 5)
+        graph = generate_queens_graph(5, 5)
+        chromatic_number, coloring = find_chromatic_number(graph)
+        self.assertEqual(chromatic_number, 5)
+        self.assertEqual(len(set(coloring)), 5)
+        self.assertTrue(is_proper_coloring(coloring, graph))
 
 class TestLinearScheduler(unittest.TestCase):
     def test_happy_scenario(self):

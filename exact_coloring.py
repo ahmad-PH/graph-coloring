@@ -3,6 +3,7 @@ from heuristics import slf_heuristic, colorize_using_heuristic
 import numpy as np
 import torch
 import signal
+from typing import Tuple, List
 
 def find_k_coloring(graph: Graph, k, random_ordering=False):
     if k <= 0:
@@ -50,8 +51,8 @@ def _find_k_coloring_rec(graph: Graph, k, ordering, curr_ind, n_used_colors, col
     coloring[curr_node] = -1 # if all attempts fail, cleanup the coloring.
     return False
 
-def find_chromatic_number(graph: Graph, verbose=False):
-    _, n_colors_used = colorize_using_heuristic(graph.adj_list, slf_heuristic)
+def find_chromatic_number(graph: Graph, verbose=False) -> Tuple[int, List[int]]:
+    best_coloring, n_colors_used = colorize_using_heuristic(graph.adj_list, slf_heuristic)
     if verbose: print('color from heuristic: ', n_colors_used)
 
     k = n_colors_used - 1
@@ -59,9 +60,10 @@ def find_chromatic_number(graph: Graph, verbose=False):
         if verbose: print(f'trying to find a {k} coloring.')
         k_coloring = find_k_coloring(graph, k)
         if k_coloring == None:
-            return k + 1
+            return k + 1, best_coloring
         else:
             k -= 1
+            best_coloring = k_coloring
 
 def find_chromatic_number_upper_bound(graph: Graph, patience_seconds: int = 5, verbose=False):
     def time_out_handler(signum, frame):
