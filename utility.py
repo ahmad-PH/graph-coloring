@@ -2,6 +2,7 @@ import math
 import heapq
 import numpy as np
 import torch
+import json
 
 def n_combinations(n, k):
     if n < k:
@@ -100,11 +101,11 @@ def save_to_file(obj, filename):
         raise ValueError("obj of type {} can't be persisted".format(type(obj)))
 
     with open(filename, 'w') as f:
-        f.write(str(obj))
+        json.dump(obj, f)
 
 def load_from_file(filename):
     with open(filename, 'r') as f:
-        return eval('\n'.join(f.readlines()))
+        return json.load(f)
 
 # class ComparableContainer:
 #     def __init__(self, item, key):
