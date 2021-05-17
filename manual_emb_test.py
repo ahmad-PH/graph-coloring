@@ -111,7 +111,7 @@ if mode == "single_run":
     np.random.seed(seed)
     print('seed is: ', seed)
 
-    embeddings, results = learn_embeddings(graph, embedding_dim, n_clusters, verbose=True)
+    embeddings, results = learn_embeddings(graph, embedding_dim, n_clusters, use_cached_sim_matrices=True, verbose=True)
 
     print('results:')
     print(results)
@@ -213,7 +213,7 @@ elif mode == "dataset_run":
             print('(seed is: {})'.format(seed), file=out)
             results_list = []
             for i in range(n_runs_per_graph):
-                _ , results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
+                _ , results = learn_embeddings(graph, n_clusters, embedding_dim, use_cached_sim_matrices=True, verbose=False)
                 results_list.append(results)
             
             # violation_ratio_list = np.array([result.violation_ratio for result in results_list])

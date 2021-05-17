@@ -19,7 +19,7 @@ import os
 import sys
 import time
 
-def learn_embeddings(graph, embedding_dim, n_clusters = None, verbose = False):
+def learn_embeddings(graph, embedding_dim, n_clusters = None, use_cached_sim_matrices = False, verbose = False):
 
     data.losses : Mapping[str, List(float)] = {}
     loss_names = ['neighborhood_loss', 'compactness_loss', 
@@ -48,13 +48,16 @@ def learn_embeddings(graph, embedding_dim, n_clusters = None, verbose = False):
         sim_matrix_t1 = time.time()
         registry = SimMatrixRegistry.get_instance()
 
-        similarity_matrix = registry.get_similarity_matrix(graph.name)
-        if graph.name == None or similarity_matrix == None:
-            if verbose:
-                print('No existing similarity matrix detected for graph {}, creating one.'.format(graph.name))
+        if use_cached_sim_matrices:
+            similarity_matrix = registry.get_similarity_matrix(graph.name)
+            if graph.name == None or similarity_matrix == None:
+                if verbose:
+                    print('No existing similarity matrix detected for graph {}, creating one.'.format(graph.name))
+                similarity_matrix = calculate_similarity_matrix(graph, inverted_adj_matrix, device)
+                if graph.name != None:
+                    registry.register_similarity_matrix(similarity_matrix, graph.name)
+        else:
             similarity_matrix = calculate_similarity_matrix(graph, inverted_adj_matrix, device)
-            if graph.name != None:
-                registry.register_similarity_matrix(similarity_matrix, graph.name)
         sim_matrix_t2 = time.time()
         
     optimizer = torch.optim.Adam([embeddings], lr=0.1)
