@@ -13,8 +13,7 @@ from matplotlib import pyplot as plt
 import sys
 
 
-
-def correct_coloring(coloring, graph: Graph):
+def correct_coloring(coloring, graph: Graph) -> List[int]:
     coloring = np.array(coloring)
     for color in coloring:
         if color >= graph.n_vertices:
