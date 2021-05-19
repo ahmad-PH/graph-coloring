@@ -2,6 +2,7 @@ from graph import Graph
 import itertools
 import networkx as nx
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
+from typing import Tuple
 
 def greedy_coloring_number(graph, strategy):
     if isinstance(graph, Graph): graph = graph.get_nx_graph()
@@ -14,7 +15,7 @@ def is_proper_coloring(coloring, graph):
                 return False
     return True
 
-def coloring_properties(coloring, graph):
+def coloring_properties(coloring, graph: Graph) -> Tuple[bool, int, float]:
     n_violations = 0
     for v1, row in enumerate(graph.adj_list):
         for v2 in row:
@@ -22,8 +23,8 @@ def coloring_properties(coloring, graph):
                 n_violations += 1
                 # print('violation: ({}, {})'.format(v1, v2))
 
-    n_violations /= 2 # because we counted each twice
-    return n_violations == 0, n_violations, float(n_violations) / graph.n_edges
+    n_violations = int(n_violations / 2) # because we counted each twice
+    return n_violations == 0, n_violations, n_violations / graph.n_edges
 
 
 def generate_kneser_graph(n, k):
