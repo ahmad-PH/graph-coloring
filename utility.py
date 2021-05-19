@@ -1,6 +1,8 @@
 import math
 import heapq
 import numpy as np
+import torch
+import json
 
 def n_combinations(n, k):
     if n < k:
@@ -79,6 +81,31 @@ class DataDump:
     def __repr__(self):
         return self.data.__repr__()
 
+
+def tensor_correlation(t1: torch.Tensor, t2: torch.Tensor) -> float:
+    if t1.shape != t2.shape:
+        raise ValueError("t1 and t2 must have the same shape")
+
+    s1, u1 = torch.std_mean(t1)
+    s2, u2 = torch.std_mean(t2)
+
+    return (torch.mean((t1 - u1) * (t2 - u2)) / (s1 * s2 + 1e-10)).item()
+
+def fastest_available_device():
+    return torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+allowed_obj_types_for_persistance = [list]
+
+def save_to_file(obj, filename):
+    if type(obj) not in allowed_obj_types_for_persistance:
+        raise ValueError("obj of type {} can't be persisted".format(type(obj)))
+
+    with open(filename, 'w') as f:
+        json.dump(obj, f)
+
+def load_from_file(filename):
+    with open(filename, 'r') as f:
+        return json.load(f)
 
 # class ComparableContainer:
 #     def __init__(self, item, key):

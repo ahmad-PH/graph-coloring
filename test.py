@@ -6,16 +6,15 @@ import os, shutil
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
 from colorizer_1_plain import ColorClassifier
-from colorizer_8_pointer_netw import GraphColorizer as PointerColorizer
 from graph import Graph
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utility import EWMAWithCorrection, LinearScheduler
+from utility import EWMAWithCorrection, LinearScheduler, tensor_correlation, save_to_file, load_from_file
 from graph_utility import generate_kneser_graph, generate_queens_graph, sort_graph_adj_list, \
     is_proper_coloring, coloring_properties
 from snap_utility import edgelist_eliminate_self_loops
-from exact_coloring import find_k_coloring
+from exact_coloring import find_k_coloring, find_chromatic_number
 from sim_matrix_registry import SimMatrixRegistry
 from manual_emb_utility import correct_coloring, colorize_embedding_guided_slf_mean, colorize_embedding_guided_slf_max
 from test_data_generator import generate_random_mapping
@@ -198,7 +197,7 @@ class TestColorClassifier(unittest.TestCase):
 
     def _create_sample_data(self, embedding_size, n_possible_colors, sample_size = 10):
         layer1 = nn.Linear(embedding_size, 200).to(self.device)
-        layer2 = nn.Linear(200, n_possible_colors + 1).to(self.device)
+        layer2 = nn.Linear(200, n_possible_colors).to(self.device)
         nn.init.uniform_(layer1.weight.data, -1, 1)
         nn.init.uniform_(layer2.weight.data, -1, 1)
 
@@ -212,7 +211,7 @@ class TestColorClassifier(unittest.TestCase):
         embedding_size = 200
         n_possible_colors = 50
         x, y = self._create_sample_data(embedding_size, n_possible_colors)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         optimizer = torch.optim.Adam(classifier.parameters())
         loss_function = nn.MSELoss()
@@ -230,7 +229,7 @@ class TestColorClassifier(unittest.TestCase):
         embedding_size = 30
         n_possible_colors = 5
         x, y = self._create_sample_data(embedding_size, n_possible_colors, 5)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         optimizer = torch.optim.Adam(classifier.parameters())
         loss_function = nn.MSELoss()
@@ -245,11 +244,12 @@ class TestColorClassifier(unittest.TestCase):
         
         self.assertLess(loss.item(), 0.0005)
 
+    @unittest.skip("The current classifier doesn't support masking")
     def test_n_used_colors_masks_propery(self):
         embedding_size = 100
         n_possible_colors = 20
         x, _ = self._create_sample_data(embedding_size, n_possible_colors)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         y_hat = classifier(x[0], 10)
         self.assertEqual(torch.sum(y_hat[10:20]).item(), 0.)
@@ -262,12 +262,12 @@ class TestColorClassifier(unittest.TestCase):
         embedding_size = 100
         n_possible_colors = 20
         x, y = self._create_sample_data(embedding_size, n_possible_colors, 10)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         optimizer = torch.optim.Adam(classifier.parameters())
 
         n_used_colors = 10
-        ignored_predictions = torch.tensor([0] * n_used_colors + [1] * (n_possible_colors-n_used_colors) + [0], dtype=torch.bool) \
+        ignored_predictions = torch.tensor([0] * n_used_colors + [1] * (n_possible_colors-n_used_colors), dtype=torch.bool) \
                              .repeat(y.shape[0], 1) \
                              .to(self.device)
 
@@ -280,11 +280,12 @@ class TestColorClassifier(unittest.TestCase):
         
         self.assertLess(loss.item(), 1e-4)
 
+    @unittest.skip("The current classifier doesn't support masking")
     def test_neighboring_colors_masked_properly(self):
         embedding_size = 100
         n_possible_colors = 20
         x, _ = self._create_sample_data(embedding_size, n_possible_colors, 1)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
         
         adj_colors = [1,3,5]
         y_hat = classifier(x[0], n_possible_colors, adj_colors=None)
@@ -365,42 +366,6 @@ class TestSLFHeuristic(unittest.TestCase):
         self.assertListEqual(ordering[:4], [0,1,2,3])
 
 
-class TestPointerColorizer(unittest.TestCase):
-    def setUp(self):
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.colorizer = PointerColorizer(device=self.device)
-        self.n_possible_colors = self.colorizer.n_possible_colors
-
-    def test_full_mask(self):
-        mask = self.colorizer._get_pointer_mask(0, []).squeeze(0)
-        for i in range(0, self.n_possible_colors):
-            self.assertEqual(mask[i], True)
-        self.assertEqual(mask[self.n_possible_colors], False)
-
-    def test_some_used_no_adj(self):
-        mask = self.colorizer._get_pointer_mask(3, []).squeeze(0)
-        for i in range(0, 3):
-            self.assertEqual(mask[i], False)
-        for i in range(4, self.n_possible_colors):
-            self.assertEqual(mask[i], True)
-        self.assertEqual(mask[self.n_possible_colors], False)
-
-    def test_some_used_some_adj(self):
-        mask = self.colorizer._get_pointer_mask(4, [0,2]).squeeze(0)
-        self.assertEqual(mask[0], True)
-        self.assertEqual(mask[1], False)
-        self.assertEqual(mask[2], True)
-        self.assertEqual(mask[3], False)
-        for i in range(4, self.n_possible_colors):
-            self.assertEqual(mask[i], True)
-        self.assertEqual(mask[self.n_possible_colors], False)
-
-    def test_all_used(self):
-        mask = self.colorizer._get_pointer_mask(self.n_possible_colors, []).squeeze(0)
-        for i in range(0, self.n_possible_colors + 1):
-            self.assertEqual(mask[i], False)
-
-
 class TestColoringCheckers(unittest.TestCase):
     def test_is_proper_coloring_true(self):
         self.assertTrue(is_proper_coloring([0, 1, 1, 0, 1], graph2))
@@ -477,6 +442,20 @@ class TestFindKColoring(unittest.TestCase):
         self.assertEqual(n_used, 3)
 
 
+class TestFindChromaticNumber(unittest.TestCase):
+    def test_slf_hard(self):
+        chromatic_number, coloring = find_chromatic_number(slf_hard)
+        self.assertEqual(chromatic_number, 3)
+        self.assertEqual(len(set(coloring)), 3)
+        self.assertTrue(is_proper_coloring(coloring, slf_hard))
+
+    def test_q5_5(self):
+        graph = generate_queens_graph(5, 5)
+        chromatic_number, coloring = find_chromatic_number(graph)
+        self.assertEqual(chromatic_number, 5)
+        self.assertEqual(len(set(coloring)), 5)
+        self.assertTrue(is_proper_coloring(coloring, graph))
+
 class TestLinearScheduler(unittest.TestCase):
     def test_happy_scenario(self):
         scheduler = LinearScheduler(10, 12, 2)
@@ -546,7 +525,7 @@ class TestSimMatrixRegistry(unittest.TestCase):
 
 
 class TestGenerateRandomMapping(unittest.TestCase):
-    def test_x(self):
+    def test_all_colors_selected(self):
         np.random.seed(0)
         for i in range(100):
             n_vertices = np.random.randint(50, 100)
@@ -559,3 +538,23 @@ class TestGenerateRandomMapping(unittest.TestCase):
             for selected_n_times in color_selected_n_times:
                 self.assertGreater(selected_n_times, 0)
             
+
+class TestTensorCorrelation(unittest.TestCase):
+    def test_self_correlation(self):
+        torch.manual_seed(0)
+        t1 = torch.normal(0., 0.5, (100,))
+        self.assertGreater(tensor_correlation(t1, t1), 0.98)
+
+    def test_no_correlation(self):
+        t1 = torch.tensor([0., 1., -1.])
+        t2 = torch.tensor([5., 5., 5.])
+        self.assertEqual(tensor_correlation(t1, t2), 0.)
+
+
+class TestSaveLoadFromFile(unittest.TestCase):
+    def test_happy_scenario_list(self):
+        list_to_save = [1, 2, 5]
+        save_to_file(list_to_save, '/tmp/test.txt')
+        loaded_list = load_from_file('/tmp/test.txt')
+        self.assertListEqual(list_to_save, loaded_list)
+

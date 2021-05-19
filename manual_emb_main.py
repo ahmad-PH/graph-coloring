@@ -19,7 +19,7 @@ import os
 import sys
 import time
 
-def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
+def learn_embeddings(graph, embedding_dim, n_clusters = None, use_cached_sim_matrices = False, verbose = False):
 
     data.losses : Mapping[str, List(float)] = {}
     loss_names = ['neighborhood_loss', 'compactness_loss', 
@@ -47,12 +47,17 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
         sim_matrix_t1 = time.time()
         registry = SimMatrixRegistry.get_instance()
-        similarity_matrix = registry.get_similarity_matrix(graph.name)
-        if similarity_matrix == None:
-            if verbose:
-                print('No existing similarity matrix detected for graph {}, creating one.'.format(graph.name))
+
+        if use_cached_sim_matrices:
+            similarity_matrix = registry.get_similarity_matrix(graph.name)
+            if graph.name == None or similarity_matrix == None:
+                if verbose:
+                    print('No existing similarity matrix detected for graph {}, creating one.'.format(graph.name))
+                similarity_matrix = calculate_similarity_matrix(graph, inverted_adj_matrix, device)
+                if graph.name != None:
+                    registry.register_similarity_matrix(similarity_matrix, graph.name)
+        else:
             similarity_matrix = calculate_similarity_matrix(graph, inverted_adj_matrix, device)
-            registry.register_similarity_matrix(similarity_matrix, graph.name)
         sim_matrix_t2 = time.time()
         
     optimizer = torch.optim.Adam([embeddings], lr=0.1)
@@ -68,15 +73,18 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
 
         # ======= A bunch of plots and logs: =======
 
-        if i % 10 == 0 and verbose:
-            plt.title('{}'.format(i))
-            # plot_points(embeddings, annotate=True, c=classes_to_colors(proper_coloring))
-            plot_points(embeddings, annotate=True)
-            plt.savefig('images/{}'.format(i))
-            plt.clf()
+        # if i % 10 == 0 and verbose:
+        #     plt.title('{}'.format(i))
+        #     # plot_points(embeddings, annotate=True, c=classes_to_colors(proper_coloring))
+        #     plot_points(embeddings, annotate=True)
+        #     plt.savefig('images/{}'.format(i))
+        #     plt.clf()
 
-        if i % 10 == 0 and verbose:
-            colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
+        if i % 10 == 0 and verbose and n_clusters != None:
+            # colors = colorize_embedding_guided_slf_max(embeddings.detach(), graph)
+            kmeans = KMeans(n_clusters)
+            kmeans.fit(embeddings.detach().cpu().numpy())
+            colors = kmeans.labels_
             n_used_colors = len(set(colors))
             data.n_color_performance.append(n_used_colors)
 
@@ -136,6 +144,9 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
     # assert(is_proper_coloring(coloring, graph))
     # results.n_used_colors = len(set(coloring))
 
+    if n_clusters == None:
+        n_clusters = guess_best_n_clusters(embeddings, graph)
+
     clustering_t1 = time.time()
     clustering_results = []
     for i in range(11):
@@ -145,9 +156,7 @@ def learn_embeddings(graph, n_clusters, embedding_dim, verbose):
             kmeans = KMeans(n_clusters, init='random')
         kmeans.fit(embeddings.detach().cpu().numpy())
         cluster_centers = torch.tensor(kmeans.cluster_centers_).to(device)
-
-        colors = torch.argmin(compute_pairwise_distances(embeddings, cluster_centers), dim=1)
-        colors = colors.detach().cpu().numpy()
+        colors = kmeans.labels_
         properties = coloring_properties(colors, graph)
         violation_ratio = properties[2]
 

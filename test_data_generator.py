@@ -50,7 +50,7 @@ def generate_clustered_embeddings(embedding_dim: int, n_embeddings: int,
 
     for i in range(n_embeddings):
         target_center = cluster_centers[embedding_cluster_map[i]]
-        noise = torch.normal(0., min_center_distance/2, target_center.shape)
+        noise = torch.normal(0., min_center_distance/8., target_center.shape)
         embeddings[i] = target_center + noise
 
     return embeddings

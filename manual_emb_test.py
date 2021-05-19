@@ -6,8 +6,9 @@ from globals import data
 from snap_utility import load_snap_graph
 from networkx.algorithms.coloring.greedy_coloring import greedy_color
 from networkx.algorithms.clique import find_cliques, graph_clique_number
-from exact_coloring import find_k_coloring
+from exact_coloring import find_k_coloring, find_chromatic_number_upper_bound
 from manual_emb_utility import *
+from graph_dataset import GraphDatasetEager
 
 import torch
 import torch.nn as nn
@@ -18,8 +19,8 @@ import sys
 
 from manual_emb_main import learn_embeddings
 
-# mode = "single_run"
-mode = "dataset_run"
+mode = "single_run"
+# mode = "dataset_run"
 
 # G = snap.LoadEdgeList(snap.TNGraph, "../data/singular/new/p2p-Gnutella04.txt")
 # G = snap.LoadEdgeList(snap.TNGraph, "../data/singular/new/ca-HepTh.txt")
@@ -48,6 +49,15 @@ if mode == "single_run":
     # graph, n_clusters = generate_queens_graph(13,13), 13
     # graph, n_clusters = Graph.load('../data/singular/new/email-Eu-core.graph'), 21
     # graph, n_clusters = Graph.load('../data/singular/new/CollegeMsg.graph'), 10
+    # graph, n_clusters = generate_erdos_renyi_graph(100, 0.3), None
+
+    ds = GraphDatasetEager('../data/er_50_challenging')
+
+    for i, graph in enumerate(ds):
+        learn_embeddings(graph, 10, ) # TODO: see the stats of each graph, and compapre it to learn_embedding results to see how good the inital embeddings are.
+
+    sys.exit(0)
+
 
     # graph = Graph.load('../data/singular/ws_1000')
     # graph = Graph.load('../data/singular/k_1000')
@@ -101,7 +111,7 @@ if mode == "single_run":
     np.random.seed(seed)
     print('seed is: ', seed)
 
-    embeddings, results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=True)
+    embeddings, results = learn_embeddings(graph, embedding_dim, n_clusters, use_cached_sim_matrices=True, verbose=True)
 
     print('results:')
     print(results)
@@ -203,7 +213,7 @@ elif mode == "dataset_run":
             print('(seed is: {})'.format(seed), file=out)
             results_list = []
             for i in range(n_runs_per_graph):
-                _ , results = learn_embeddings(graph, n_clusters, embedding_dim, verbose=False)
+                _ , results = learn_embeddings(graph, n_clusters, embedding_dim, use_cached_sim_matrices=True, verbose=False)
                 results_list.append(results)
             
             # violation_ratio_list = np.array([result.violation_ratio for result in results_list])
@@ -226,5 +236,4 @@ elif mode == "dataset_run":
         for item in summary:
             print('{:.1f}, {:.1f},  {:.1f}, {:.2f}'.format(item[0], item[1], item[2], item[3]), file=out)
             # print('{:.1f}, {:.1f},  {:.1f}, {:.2f}, {:.1f}%'.format(item[0], item[1], item[2], item[3], 100 * item[4]), file=out)
-        
         
