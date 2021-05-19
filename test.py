@@ -5,8 +5,7 @@ import os, shutil
 
 from heuristics import *
 from GAT import GraphAttentionLayer, GraphSingularAttentionLayer
-from colorizer_2_distance import ColorClassifier
-from colorizer_8_pointer_netw import GraphColorizer as PointerColorizer
+from colorizer_1_plain import ColorClassifier
 from graph import Graph
 import torch
 import torch.nn as nn
@@ -198,7 +197,7 @@ class TestColorClassifier(unittest.TestCase):
 
     def _create_sample_data(self, embedding_size, n_possible_colors, sample_size = 10):
         layer1 = nn.Linear(embedding_size, 200).to(self.device)
-        layer2 = nn.Linear(200, n_possible_colors + 1).to(self.device)
+        layer2 = nn.Linear(200, n_possible_colors).to(self.device)
         nn.init.uniform_(layer1.weight.data, -1, 1)
         nn.init.uniform_(layer2.weight.data, -1, 1)
 
@@ -212,7 +211,7 @@ class TestColorClassifier(unittest.TestCase):
         embedding_size = 200
         n_possible_colors = 50
         x, y = self._create_sample_data(embedding_size, n_possible_colors)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         optimizer = torch.optim.Adam(classifier.parameters())
         loss_function = nn.MSELoss()
@@ -230,7 +229,7 @@ class TestColorClassifier(unittest.TestCase):
         embedding_size = 30
         n_possible_colors = 5
         x, y = self._create_sample_data(embedding_size, n_possible_colors, 5)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         optimizer = torch.optim.Adam(classifier.parameters())
         loss_function = nn.MSELoss()
@@ -245,11 +244,12 @@ class TestColorClassifier(unittest.TestCase):
         
         self.assertLess(loss.item(), 0.0005)
 
+    @unittest.skip("The current classifier doesn't support masking")
     def test_n_used_colors_masks_propery(self):
         embedding_size = 100
         n_possible_colors = 20
         x, _ = self._create_sample_data(embedding_size, n_possible_colors)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         y_hat = classifier(x[0], 10)
         self.assertEqual(torch.sum(y_hat[10:20]).item(), 0.)
@@ -262,12 +262,12 @@ class TestColorClassifier(unittest.TestCase):
         embedding_size = 100
         n_possible_colors = 20
         x, y = self._create_sample_data(embedding_size, n_possible_colors, 10)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
 
         optimizer = torch.optim.Adam(classifier.parameters())
 
         n_used_colors = 10
-        ignored_predictions = torch.tensor([0] * n_used_colors + [1] * (n_possible_colors-n_used_colors) + [0], dtype=torch.bool) \
+        ignored_predictions = torch.tensor([0] * n_used_colors + [1] * (n_possible_colors-n_used_colors), dtype=torch.bool) \
                              .repeat(y.shape[0], 1) \
                              .to(self.device)
 
@@ -280,11 +280,12 @@ class TestColorClassifier(unittest.TestCase):
         
         self.assertLess(loss.item(), 1e-4)
 
+    @unittest.skip("The current classifier doesn't support masking")
     def test_neighboring_colors_masked_properly(self):
         embedding_size = 100
         n_possible_colors = 20
         x, _ = self._create_sample_data(embedding_size, n_possible_colors, 1)
-        classifier = ColorClassifier(embedding_size, n_possible_colors, run_assertions=False).to(self.device)
+        classifier = ColorClassifier(embedding_size, n_possible_colors).to(self.device)
         
         adj_colors = [1,3,5]
         y_hat = classifier(x[0], n_possible_colors, adj_colors=None)
