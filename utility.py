@@ -36,7 +36,10 @@ class LinearScheduler:
         self.value += self.increment
         self.n_times_called += 1
         if self.n_times_called > self.n_iterations:
-            raise RuntimeError("LinearScheduler called more times than it should.")
+            raise RuntimeError("LinearScheduler.get_next_value called more times than it should.")
+        return self.value
+
+    def get_value(self):
         return self.value
 
 class EWMAWithCorrection:

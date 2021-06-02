@@ -23,7 +23,7 @@ from globals import data
 from manual_emb_utility import plot_points
 from manual_emb_main import learn_embeddings
 
-from colorizer_4_extra_layers import GraphColorizer
+from colorizer_2_reinforce import GraphColorizer
 
 mode = "single_run"
 # mode = "dataset_run"
@@ -73,16 +73,18 @@ def test_on_single_graph():
     # print('chromatic_number:', len(set(data.optimal_coloring)))
 
     colorizer = GraphColorizer(embeddings.shape[1], device=fastest_available_device())
-    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(colorizer.parameters(), lr=0.085)
 
-    n_epochs = 400
+    n_epochs = 100
     baseline = EWMAWithCorrection(0.9)
     losses = []
     baselines = []
     n_color_performance = []
-    # corrected_performance = []
+    corrected_performance = []
     costs = []
     violation_ratios = []
+    confidences = []
+    log_confidences = []
     data.n_used_lambda_scheduler = LinearScheduler(0.001, 0.1, n_epochs)
 
     for i in range(n_epochs):
@@ -90,6 +92,7 @@ def test_on_single_graph():
 
         optimizer.zero_grad()
         coloring, loss, extra = colorizer.forward(graph, embeddings, baseline.get_value())
+
         n_used_colors = len(set(coloring))
         baseline.update(extra.cost)
         print('props', coloring_properties(coloring, graph))
@@ -100,12 +103,13 @@ def test_on_single_graph():
         n_color_performance.append(n_used_colors)
         costs.append(extra.cost)
         violation_ratios.append(extra.violation_ratio)
-        # corrected_performance.append(len(set(correct_coloring(coloring, graph))))
+        confidences.append(extra.confidence)
+        log_confidences.append(extra.log_confidence)
+        corrected_performance.append(len(set(correct_coloring(coloring, graph))))
 
         loss.backward()
         optimizer.step()
 
-        # print('loss:', loss.item())
         losses.append(loss.item())
         baselines.append(baseline.get_value())
 
@@ -119,9 +123,13 @@ def test_on_single_graph():
     plt.plot(losses)
     plt.figure()
 
-    # plt.title('corrected_performance')
-    # plt.plot(corrected_performance)
-    # plt.figure()
+    plt.title('confidence')
+    plt.plot(confidences)
+    plt.figure()
+
+    plt.title('log_confidence')
+    plt.plot(log_confidences)
+    plt.figure()
 
     plt.title('cost + baseline')
     plt.plot(costs, label='cost')
@@ -130,7 +138,9 @@ def test_on_single_graph():
     plt.figure()
 
     plt.title('n_used')
-    plt.plot(n_color_performance)
+    plt.plot(n_color_performance, label='regular')
+    plt.plot(corrected_performance, label='corrected')
+    plt.legend()
     plt.figure()
 
     plt.title('violation_ratios')

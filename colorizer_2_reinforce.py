@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from utility import *
 from globals import data
 from graph_utility import *
+from multi_head_attention import MHAAdapter
 
 class GraphColorizer(nn.Module):
     def __init__(self, embedding_size, dropout=0.6, alpha=0.2, device="cpu", loss_type="reinforce"):
@@ -22,6 +23,24 @@ class GraphColorizer(nn.Module):
         self.color_classifier = ColorClassifier(self.embedding_size, self.n_possible_colors)
         self.add_module("color_classifier", self.color_classifier)
 
+
+        self.n_attn_layers = 10
+
+        self.neighb_attns = nn.ModuleList([
+            MHAAdapter(8, self.embedding_size, self.embedding_size, name="neighb_attn_{}".format(i)) \
+            for i in range(self.n_attn_layers)])
+
+        self.non_neighb_attns = nn.ModuleList([
+            MHAAdapter(8, self.embedding_size, self.embedding_size, name="non_neighb_attn_{}".format(i)) \
+            for i in range(self.n_attn_layers)])
+
+        self.attn_combiner = nn.ModuleList([nn.Sequential(
+                nn.Linear(2*self.embedding_size, 2*self.embedding_size),
+                nn.LeakyReLU(0.05),
+                nn.Linear(2*self.embedding_size, self.embedding_size)
+            ) for _ in range(self.n_attn_layers)
+        ])
+
         self.device = device
         self.to(device)
 
@@ -30,12 +49,19 @@ class GraphColorizer(nn.Module):
             adj_matrix = torch.tensor(graph.get_adj_matrix(), dtype=torch.float32, requires_grad=False).to(self.device) 
             inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix - torch.eye(graph.n_vertices).to(self.device)
 
+        for i in range(self.n_attn_layers):
+            neighbor_updates = F.relu(self.neighb_attns[i].forward(embeddings, adj_matrix))
+            non_neighbor_updates = F.relu(self.non_neighb_attns[i].forward(embeddings, inverted_adj_matrix))
+            concatenated = torch.cat((neighbor_updates, non_neighbor_updates), dim=1)
+            embeddings = embeddings + torch.tanh(self.attn_combiner[i].forward(concatenated))
+
         vertex_order = slf_heuristic(graph.adj_list)
         colors = np.array([-1] * graph.n_vertices)
         self._assign_color(0, vertex_order[0], colors)
         n_used_colors = 1
         partial_log_prob = torch.tensor(0.).to(self.device)
         extra = DataDump()
+        extra.confidence = 1.
 
         for vertex in vertex_order[1:]:
             adjacent_colors = self._get_adjacent_colors(vertex, graph, colors)
@@ -44,9 +70,9 @@ class GraphColorizer(nn.Module):
             classifier_out = self.color_classifier.forward(embeddings[vertex], n_used_colors, adjacent_colors)
             # print('classifier outputs: {}'.format(classifier_out.detach().cpu()))
 
-            # use output to determine next color (decode it)
-            raw_chosen_color = np.random.choice(self.n_possible_colors , p = classifier_out.detach().cpu().numpy()) # TODO: put back the +1 on n_possible_colors 
+            raw_chosen_color = np.random.choice(self.n_possible_colors , p = classifier_out.detach().cpu().numpy())
 
+            # ================== use output to determine next color (decode it) ==================
             # if raw_chosen_color == self.n_possible_colors:
             #     if n_used_colors == self.n_possible_colors:
             #         raise RuntimeError('All colors are used, but the network still chose new color.')
@@ -58,36 +84,32 @@ class GraphColorizer(nn.Module):
             chosen_color = raw_chosen_color
             self._assign_color(chosen_color, vertex, colors)
 
-            # print('optimal_sol: {}, probabilities: {}, loss: {} selected: {}'.format(data.optimal_coloring[vertex],
-            #     classifier_out.data, loss_part, raw_chosen_color))
-            
-            # print('optimal sol: {}, selected: {}'.format(data.optimal_coloring[vertex], raw_chosen_color))
-            
             prob = classifier_out[raw_chosen_color]
-            log_prob = torch.log(prob + 1e-8) - torch.log(torch.tensor(1e-8)) # TEST # [0, 18.42]
-            partial_log_prob += log_prob
+            partial_log_prob += torch.log(prob + 1e-8)
+
+            extra.confidence *= prob.item()
 
 
-        # if baseline is None: raise ValueError('baseline cannot be None if loss type is `reinforcement`.')
-        # print('log_partial_prob: {}'.format(log_partial_prob))
         # reinforce_loss = (n_used_colors - baseline) * log_partial_prob / graph.n_vertices
 
-        confidence = partial_log_prob / graph.n_vertices
+        confidence = partial_log_prob # / graph.n_vertices
         _, _, violation_ratio = coloring_properties(colors, graph)
         violation_percent = violation_ratio * 100.
         n_used_colors = len(set(colors))
         # n_used_colors_ratio = n_used_colors / graph.n_vertices
         _lambda = data.n_used_lambda_scheduler.get_next_value()
-        cost = (n_used_colors * _lambda + violation_percent)
-        print('lambda: ', _lambda)
+        cost = n_used_colors * _lambda + violation_percent
 
-        reinforce_loss = cost * confidence
-        print('violation_percent: {}, n_used_colors: {}, cost: {}, confidence: {}, loss: {}'.format(
-            violation_percent, n_used_colors, cost, confidence.item(), reinforce_loss.item()
+        relative_cost = cost - baseline
+
+        reinforce_loss = relative_cost * confidence
+        print('violation_percent: {}, n_used_colors: {}, lambda: {} cost: {}, confidence: {}, loss: {}'.format(
+            violation_percent, n_used_colors, _lambda, cost, confidence.item(), reinforce_loss.item()
         ))
         
         extra.cost = cost
         extra.violation_ratio = violation_ratio
+        extra.log_confidence = confidence
         return colors, reinforce_loss, extra
 
     def _get_adjacent_colors(self, vertex, graph, colors):
