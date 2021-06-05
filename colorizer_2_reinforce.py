@@ -44,7 +44,7 @@ class GraphColorizer(nn.Module):
         self.device = device
         self.to(device)
 
-    def forward(self, graph: Graph, embeddings: torch.Tensor, baseline=None):
+    def forward(self, graph: Graph, embeddings: torch.Tensor, baseline=None, greedy=False):
         with torch.no_grad():
             adj_matrix = torch.tensor(graph.get_adj_matrix(), dtype=torch.float32, requires_grad=False).to(self.device) 
             inverted_adj_matrix = torch.ones_like(adj_matrix) - adj_matrix - torch.eye(graph.n_vertices).to(self.device)
@@ -70,7 +70,10 @@ class GraphColorizer(nn.Module):
             classifier_out = self.color_classifier.forward(embeddings[vertex], n_used_colors, adjacent_colors)
             # print('classifier outputs: {}'.format(classifier_out.detach().cpu()))
 
-            raw_chosen_color = np.random.choice(self.n_possible_colors , p = classifier_out.detach().cpu().numpy())
+            if not greedy:
+                raw_chosen_color = np.random.choice(self.n_possible_colors , p = classifier_out.detach().cpu().numpy())
+            else:
+                raw_chosen_color = classifier_out.argmax().item()
 
             # ================== use output to determine next color (decode it) ==================
             # if raw_chosen_color == self.n_possible_colors:
@@ -97,20 +100,27 @@ class GraphColorizer(nn.Module):
         violation_percent = violation_ratio * 100.
         n_used_colors = len(set(colors))
         # n_used_colors_ratio = n_used_colors / graph.n_vertices
-        _lambda = data.n_used_lambda_scheduler.get_next_value()
+        _lambda = data.n_used_lambda_scheduler.peek_next_value()
+        if not greedy:
+            data.n_used_lambda_scheduler.get_next_value()
         cost = n_used_colors * _lambda + violation_percent
 
-        relative_cost = cost - baseline
+        if not greedy:
+            relative_cost = cost - baseline
 
-        reinforce_loss = relative_cost * confidence
-        print('violation_percent: {}, n_used_colors: {}, lambda: {} cost: {}, confidence: {}, loss: {}'.format(
-            violation_percent, n_used_colors, _lambda, cost, confidence.item(), reinforce_loss.item()
-        ))
-        
-        extra.cost = cost
-        extra.violation_ratio = violation_ratio
-        extra.log_confidence = confidence
-        return colors, reinforce_loss, extra
+            reinforce_loss = relative_cost * confidence
+            print('violation_percent: {}, n_used_colors: {}, lambda: {} cost: {}, confidence: {}, loss: {}'.format(
+                violation_percent, n_used_colors, _lambda, cost, confidence.item(), reinforce_loss.item()
+            ))
+            
+            extra.cost = cost
+            extra.violation_ratio = violation_ratio
+            extra.log_confidence = confidence
+            return colors, reinforce_loss, extra
+
+        else:
+            extra.cost = cost
+            return None, None, extra
 
     def _get_adjacent_colors(self, vertex, graph, colors):
         # "-1" is removed from the answer because -1 indicates "no color yet"

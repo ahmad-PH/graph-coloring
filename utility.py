@@ -39,6 +39,9 @@ class LinearScheduler:
             raise RuntimeError("LinearScheduler.get_next_value called more times than it should.")
         return self.value
 
+    def peek_next_value(self):
+        return self.value + self.increment
+
     def get_value(self):
         return self.value
 
